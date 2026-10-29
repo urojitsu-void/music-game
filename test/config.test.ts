@@ -2,11 +2,17 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { test } from 'node:test';
+import { test, type TestContext } from 'node:test';
 
-import { loadConfig } from '../src/build/config.mjs';
+import { loadConfig, type ConfigOverrides } from '../src/build/config.ts';
 
-async function fixture(t, value) {
+// Compile-time check only: callers cannot mutate configuration overrides.
+function checkConfigOverrideTypes(overrides: ConfigOverrides): void {
+  // @ts-expect-error Configuration override properties are readonly.
+  overrides.difficulty = 'easy';
+}
+
+async function fixture(t: TestContext, value?: unknown) {
   const cwd = await mkdtemp(join(tmpdir(), 'music-config-'));
   t.after(() => rm(cwd, { recursive: true, force: true }));
   const inputDir = join(cwd, '曲 の素材');
@@ -20,6 +26,7 @@ async function fixture(t, value) {
 test('loadConfig returns exact defaults as deeply immutable plain data', async (t) => {
   const options = await fixture(t);
   const config = await loadConfig(options);
+  const layout = config.layout;
   assert.deepEqual(config, {
     difficulty: 'normal', seed: 12345, outDir: join(options.cwd, 'output'), cover: null,
     layout: { gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68 },
@@ -28,7 +35,10 @@ test('loadConfig returns exact defaults as deeply immutable plain data', async (
   assert.equal(Object.getPrototypeOf(config.layout), Object.prototype);
   assert.equal(Object.isFrozen(config), true);
   assert.equal(Object.isFrozen(config.layout), true);
-  assert.throws(() => { config.layout.gameX = 0; }, TypeError);
+  assert.throws(() => {
+    // @ts-expect-error Resolved layout properties are readonly.
+    layout.gameX = 0;
+  }, TypeError);
 });
 
 test('loadConfig reads all permitted keys from the input directory', async (t) => {
@@ -96,7 +106,7 @@ for (const seed of [Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 0]) {
   });
 }
 
-const invalidValues = [
+const invalidValues: [string, unknown][] = [
   ['difficulty', 'expert'], ['difficulty', 1], ['difficulty', null],
   ['seed', '123'], ['seed', 1.5], ['seed', Number.MAX_SAFE_INTEGER + 1], ['seed', NaN],
   ['seed', Infinity], ['seed', null], ['outDir', 2], ['outDir', null],

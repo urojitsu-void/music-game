@@ -2,11 +2,27 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { test } from 'node:test';
+import { test, type TestContext } from 'node:test';
 
-import { resolveInputs } from '../src/build/inputs.mjs';
+import { resolveInputs, type ResolvedInputs } from '../src/build/inputs.ts';
 
-async function fixture(t, names) {
+// Type-only checks: keep the discriminant and all resolved paths immutable.
+function checkResolvedInputTypes(input: ResolvedInputs): string {
+  if (input.mode === 'mp3') {
+    // @ts-expect-error Resolved audio paths are readonly.
+    input.audioPath = 'other.mp3';
+    // @ts-expect-error MP3 inputs have no video path.
+    input.videoPath;
+    return input.audioPath;
+  }
+  // @ts-expect-error Resolved video paths are readonly.
+  input.videoPath = 'other.mp4';
+  // @ts-expect-error Video inputs have no audio path.
+  input.audioPath;
+  return input.videoPath;
+}
+
+async function fixture(t: TestContext, names: readonly string[]) {
   const dir = await mkdtemp(join(tmpdir(), 'music-inputs-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   for (const name of names) await writeFile(join(dir, name), 'fixture');
@@ -24,7 +40,10 @@ for (const imageExt of ['png', 'jpg', 'jpeg', 'PnG', 'JPG', 'JpEg']) {
     });
     assert.equal(Object.getPrototypeOf(actual), Object.prototype);
     assert.equal(Object.isFrozen(actual), true);
-    assert.throws(() => { actual.mode = 'video'; }, TypeError);
+    assert.throws(() => {
+      // @ts-expect-error Resolved input mode is readonly.
+      actual.mode = 'video';
+    }, TypeError);
   });
 }
 
@@ -57,6 +76,7 @@ test('rejects ambiguous cover images and requests explicit cover', async (t) => 
 test('explicit cover overrides ambiguous neighboring images', async (t) => {
   const dir = await fixture(t, ['song.mp3', 'song.lrc', 'song.png', 'song.jpg', 'chosen.jpeg']);
   const result = await resolveInputs({ inputPath: join(dir, 'song.mp3'), cover: join(dir, 'chosen.jpeg') });
+  assert(result.mode === 'mp3');
   assert.equal(result.coverPath, join(dir, 'chosen.jpeg'));
 });
 

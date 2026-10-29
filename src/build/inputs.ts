@@ -1,14 +1,22 @@
 import { readdir, stat } from 'node:fs/promises';
 import { dirname, extname, join, parse, resolve } from 'node:path';
 
+export type ResolvedInputs = Readonly<
+  | { mode: 'mp3'; audioPath: string; lrcPath: string; coverPath: string }
+  | { mode: 'video'; videoPath: string }
+>;
+
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg']);
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov']);
 
-async function requireFile(path, label) {
+async function requireFile(path: string, label: string): Promise<void> {
   if (!(await stat(path)).isFile()) throw new Error(`${label} must be a file: ${path}`);
 }
 
-export async function resolveInputs({ inputPath, cover = null }) {
+export async function resolveInputs({ inputPath, cover = null }: {
+  inputPath: string;
+  cover?: string | null;
+}): Promise<ResolvedInputs> {
   const absoluteInput = resolve(inputPath);
   const extension = extname(absoluteInput).toLowerCase();
   if (extension !== '.mp3' && !VIDEO_EXTENSIONS.has(extension)) {
@@ -26,7 +34,7 @@ export async function resolveInputs({ inputPath, cover = null }) {
   const lyrics = entries.filter((entry) => extname(entry.name).toLowerCase() === '.lrc');
   if (lyrics.length !== 1) throw new Error('MP3 requires exactly one matching LRC file');
 
-  let coverPath;
+  let coverPath: string;
   if (cover !== null) {
     coverPath = resolve(cover);
     if (!IMAGE_EXTENSIONS.has(extname(coverPath).toLowerCase())) {

@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import type { Writable } from 'node:stream';
 
 import {
   commandExists,
+  ProcessExecutionError,
   runProcess,
   spawnProcess,
-} from '../src/platform/process.mjs';
+} from '../src/platform/process.ts';
+
+// Compile-time check only: the default stdin is writable and completion has no result.
+function checkDefaultProcessTypes(): void {
+  const { child, completed } = spawnProcess(process.execPath);
+  const stdin: Writable = child.stdin;
+  const completion: Promise<void> = completed;
+  stdin.write('PNG bytes');
+  void completion;
+}
 
 test('runProcess captures stdout and stderr while preserving arguments', async () => {
   const value = 'HERE × HEAR';
@@ -27,7 +38,8 @@ test('runProcess rejects nonzero exits with process diagnostics', async () => {
       '-e',
       'process.stderr.write("broken"); process.exit(7)',
     ]),
-    (error) => {
+    (error: unknown) => {
+      assert(error instanceof ProcessExecutionError);
       assert.equal(error.command, process.execPath);
       assert.equal(error.code, 7);
       assert.equal(error.stderr, 'broken');
@@ -59,7 +71,8 @@ test('spawnProcess rejects nonzero exits with process diagnostics', async () => 
     'process.stderr.write("renderer failed"); process.exit(9)',
   ], { stdin: 'pipe' });
 
-  await assert.rejects(completed, (error) => {
+  await assert.rejects(completed, (error: unknown) => {
+    assert(error instanceof ProcessExecutionError);
     assert.equal(error.command, process.execPath);
     assert.equal(error.code, 9);
     assert.equal(error.stderr, 'renderer failed');
@@ -73,7 +86,8 @@ test('spawnProcess decodes split UTF-8 stderr without corruption', async () => {
     'process.stderr.write(Buffer.from([0xe3])); setTimeout(() => { process.stderr.write(Buffer.from([0x81, 0x82])); process.exit(4); }, 20)',
   ], { stdin: 'pipe' });
 
-  await assert.rejects(completed, (error) => {
+  await assert.rejects(completed, (error: unknown) => {
+    assert(error instanceof ProcessExecutionError);
     assert.equal(error.stderr, 'あ');
     return true;
   });
@@ -83,7 +97,8 @@ test('spawnProcess rejects spawn errors', async () => {
   const command = `missing-command-${process.pid}-${Date.now()}`;
   const { completed } = spawnProcess(command, [], { stdin: 'pipe' });
 
-  await assert.rejects(completed, (error) => {
+  await assert.rejects(completed, (error: unknown) => {
+    assert(error instanceof Error && 'command' in error && 'code' in error);
     assert.equal(error.command, command);
     assert.equal(error.code, 'ENOENT');
     return true;
@@ -99,7 +114,7 @@ test('spawnProcess propagates child errors and terminates the child', async () =
 
   child.emit('error', error);
 
-  await assert.rejects(completed, (actual) => actual === error);
+  await assert.rejects(completed, (actual: unknown) => actual === error);
   await new Promise((resolve) => child.once('close', resolve));
   assert.equal(child.signalCode, 'SIGTERM');
 });
@@ -115,8 +130,9 @@ test('spawnProcess propagates stdin EPIPE and terminates the child', async () =>
 
   child.stdin.emit('error', error);
 
-  await assert.rejects(completed, (actual) => {
+  await assert.rejects(completed, (actual: unknown) => {
     assert.equal(actual, error);
+    assert(actual instanceof Error && 'command' in actual && 'stderr' in actual);
     assert.equal(actual.command, process.execPath);
     assert.equal(actual.stderr, 'encoder warning');
     return true;
