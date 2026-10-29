@@ -105,7 +105,6 @@ type RunResult = { readonly stdout: string; readonly stderr: string };
 function preflightDeps(options: {
   readonly exists?: Readonly<Record<string, boolean>>;
   readonly filters?: string;
-  readonly chromium?: boolean;
 } = {}) {
   const exists = options.exists ?? { ffmpeg: true, ffprobe: true };
   return {
@@ -114,7 +113,6 @@ function preflightDeps(options: {
       stdout: args[0] === '-filters' ? (options.filters ?? ' ... subtitles ... ') : `${command} version 1`,
       stderr: '',
     }),
-    checkChromium: async () => options.chromium ?? true,
   };
 }
 
@@ -146,20 +144,10 @@ test('preflight reports missing FFprobe', async () => {
 });
 
 test('preflight requires subtitles filter only for MP3 mode', async () => {
-  const deps = preflightDeps({ filters: 'scale overlay', chromium: true });
+  const deps = preflightDeps({ filters: 'scale overlay' });
   await assert.rejects(
     preflight({ mode: 'mp3', nodeVersion: '20.0.0', ...deps }),
     /FFmpeg subtitles filter is required/,
   );
   await preflight({ mode: 'video', nodeVersion: '20.0.0', ...deps });
-});
-
-test('preflight gives the exact Chromium installation command', async () => {
-  await assert.rejects(
-    preflight({
-      mode: 'video', nodeVersion: '20.0.0',
-      ...preflightDeps({ chromium: false }),
-    }),
-    /Playwright Chromium is not installed\. Run: npx playwright install chromium/,
-  );
 });

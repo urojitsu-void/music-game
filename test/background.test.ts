@@ -89,8 +89,8 @@ test('createBackground passes LRC directly and writes a complete atomic error lo
   assert.equal(await readFile(lrcPath, 'utf8'), '[00:00.00]hello');
   const log = await readFile(logPath, 'utf8');
   assert.match(log, /"stage": "background"/);
-  assert.match(log, /"executable": "ffmpeg-custom"/);
-  assert.match(log, /"exitCode": 9/);
+  assert.match(log, /"command": "ffmpeg-custom"/);
+  assert.match(log, /"code": 9/);
   assert.match(log, /"stderr": "complete stderr"/);
   assert.match(log, /"arguments": \[/);
   await assert.rejects(readFile(`${logPath}.tmp`), { code: 'ENOENT' });

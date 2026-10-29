@@ -1,5 +1,5 @@
 import {
-  rename, rm, writeFile,
+  rename, rm,
 } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 
@@ -7,6 +7,7 @@ import type { ResolvedInputs } from '../build/inputs.ts';
 import {
   runProcess, type ProcessResult,
 } from '../platform/process.ts';
+import { writeStageErrorLog } from '../platform/stage-log.ts';
 import {
   probeMedia, type ProbeMetadata,
 } from './probe.ts';
@@ -88,7 +89,7 @@ type RunProcessFn = (
   command: string, args: readonly string[],
 ) => Promise<ProcessResult>;
 type ProbeMediaFn = (
-  path: string, options: { readonly ffprobe?: string },
+  path: string, options: { readonly ffprobe?: string; readonly requireAudio?: boolean },
 ) => Promise<ProbeMetadata>;
 
 export interface CreateBackgroundOptions {
@@ -121,18 +122,6 @@ function errorDetails(error: unknown): { exitCode: unknown; stderr: string } {
     };
   }
   return { exitCode: null, stderr: '' };
-}
-
-async function writeStageErrorLog(
-  logPath: string, executable: string, args: readonly string[], error: unknown,
-): Promise<void> {
-  const { exitCode, stderr } = errorDetails(error);
-  const content = `${JSON.stringify({
-    stage: 'background', executable, arguments: args, exitCode, stderr,
-  }, null, 2)}\n`;
-  const temporaryPath = `${logPath}.tmp`;
-  await writeFile(temporaryPath, content, 'utf8');
-  await rename(temporaryPath, logPath);
 }
 
 function validateBackground(
@@ -191,7 +180,12 @@ export async function createBackground(options: CreateBackgroundOptions): Promis
   try {
     await execute(ffmpegPath, args);
   } catch (error) {
-    await writeStageErrorLog(options.logPath, ffmpegPath, args, error);
+    const { exitCode, stderr } = errorDetails(error);
+    await writeStageErrorLog({
+      logPath: options.logPath, stage: 'background', command: ffmpegPath,
+      args, code: typeof exitCode === 'number' || typeof exitCode === 'string' ? exitCode : null,
+      stderr,
+    });
     await rm(temporaryOutput, { force: true });
     throw error;
   }

@@ -11,8 +11,8 @@
     "build:example": "tsx src/cli.ts build \"example/HERE × HEAR/HERE × HEAR.mp3\""
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.13",
     "esbuild": "^0.28.2",
-    "playwright": "^1.56.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

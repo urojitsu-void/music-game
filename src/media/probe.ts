@@ -1,5 +1,3 @@
-import { access } from 'node:fs/promises';
-
 import {
   commandExists, runProcess, type ProcessResult,
 } from '../platform/process.ts';
@@ -7,6 +5,7 @@ import {
 export interface VideoMetadata {
   readonly index: number;
   readonly codec: string;
+  readonly pixelFormat?: string;
   readonly encodedWidth: number;
   readonly encodedHeight: number;
   readonly displayWidth: number;
@@ -90,6 +89,7 @@ function parseVideo(stream: UnknownRecord, formatDuration: number): VideoMetadat
   return Object.freeze({
     index: integer(stream.index),
     codec: typeof stream.codec_name === 'string' ? stream.codec_name : 'unknown',
+    ...(typeof stream.pix_fmt === 'string' ? { pixelFormat: stream.pix_fmt } : {}),
     encodedWidth,
     encodedHeight,
     displayWidth: swapsDimensions ? encodedHeight : encodedWidth,
@@ -113,7 +113,9 @@ function parseAudio(stream: UnknownRecord, formatDuration: number): AudioMetadat
   });
 }
 
-export function parseProbe(value: unknown): ProbeMetadata {
+export function parseProbe(
+  value: unknown, options: { readonly requireAudio?: boolean } = {},
+): ProbeMetadata {
   const root = record(value);
   const format = record(root?.format);
   const durationSec = finiteNumber(format?.duration, Number.NaN);
@@ -128,7 +130,7 @@ export function parseProbe(value: unknown): ProbeMetadata {
   const videoStream = streams.find((stream) => stream.codec_type === 'video');
   const audioStream = streams.find((stream) => stream.codec_type === 'audio');
 
-  if (videoStream && !audioStream) {
+  if ((options.requireAudio ?? true) && videoStream && !audioStream) {
     throw new Error('Video input must contain an audio stream');
   }
   if (!videoStream && !audioStream) {
@@ -144,7 +146,11 @@ export function parseProbe(value: unknown): ProbeMetadata {
 
 export async function probeMedia(
   path: string,
-  options: { readonly ffprobe?: string; readonly runProcessFn?: RunProcessFn } = {},
+  options: {
+    readonly ffprobe?: string;
+    readonly runProcessFn?: RunProcessFn;
+    readonly requireAudio?: boolean;
+  } = {},
 ): Promise<ProbeMetadata> {
   const ffprobe = options.ffprobe ?? 'ffprobe';
   const execute = options.runProcessFn ?? runProcess;
@@ -157,12 +163,11 @@ export async function probeMedia(
   } catch (error) {
     throw new Error(`FFprobe returned invalid JSON for ${path}`, { cause: error });
   }
-  return parseProbe(parsed);
+  return parseProbe(parsed, { requireAudio: options.requireAudio });
 }
 
 type PreflightMode = 'mp3' | 'video';
 type CommandExistsFn = (command: string) => Promise<boolean>;
-type CheckChromiumFn = () => Promise<boolean>;
 
 export interface PreflightOptions {
   readonly mode: PreflightMode;
@@ -171,17 +176,6 @@ export interface PreflightOptions {
   readonly nodeVersion?: string;
   readonly commandExistsFn?: CommandExistsFn;
   readonly runProcessFn?: RunProcessFn;
-  readonly checkChromium?: CheckChromiumFn;
-}
-
-async function chromiumIsInstalled(): Promise<boolean> {
-  try {
-    const { chromium } = await import('playwright');
-    await access(chromium.executablePath());
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export async function preflight(options: PreflightOptions): Promise<void> {
@@ -192,7 +186,6 @@ export async function preflight(options: PreflightOptions): Promise<void> {
     nodeVersion = process.versions.node,
     commandExistsFn = commandExists,
     runProcessFn = runProcess,
-    checkChromium = chromiumIsInstalled,
   } = options;
 
   const nodeMajor = Number.parseInt(nodeVersion.split('.')[0] ?? '', 10);
@@ -215,9 +208,5 @@ export async function preflight(options: PreflightOptions): Promise<void> {
     if (!/\bsubtitles\b/.test(`${filters.stdout}\n${filters.stderr}`)) {
       throw new Error('FFmpeg subtitles filter is required; install an FFmpeg build with libass');
     }
-  }
-
-  if (!await checkChromium()) {
-    throw new Error('Playwright Chromium is not installed. Run: npx playwright install chromium');
   }
 }
