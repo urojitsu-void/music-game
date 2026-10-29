@@ -11,10 +11,15 @@
     "build:example": "tsx src/cli.ts build \"example/HERE × HEAR/HERE × HEAR.mp3\""
   },
   "dependencies": {
-    "playwright": "^1.56.0"
+    "esbuild": "^0.28.2",
+    "playwright": "^1.56.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
