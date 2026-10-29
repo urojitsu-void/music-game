@@ -27,12 +27,13 @@ MP3、LRC、ジャケット画像、または既存のMP4/MOVを入力し、自�
 
 ## 入力と成果物
 
-素材は同じベース名で関連付ける。
+素材は同じベース名で関連付ける。リポジトリには動作確認用として1曲分だけを `example/` 配下へ残す。
 
 ```text
-HERE × HEAR.mp3
-HERE × HEAR.lrc
-HERE × HEAR.png
+example/HERE × HEAR/
+├── HERE × HEAR.mp3
+├── HERE × HEAR.lrc
+└── HERE × HEAR.png
 ```
 
 MP4/MOVが入力された場合は、その映像と内蔵音声を背景・譜面解析元として使う。MP3入力時は、MP3、LRC、ジャケットから既存FFmpeg処理で背景動画を生成する。
@@ -47,6 +48,8 @@ output/HERE × HEAR/
 ├── final.mp4
 └── build-manifest.json
 ```
+
+`output/` 以下は生成物であり、リポジトリの `.gitignore` へ追加する。サンプルとしてGit管理するのは `example/HERE × HEAR/` の入力素材1曲分だけとし、生成済みの背景動画、透明動画、完成動画は含めない。
 
 - `background.mp4`: 歌詞、ジャケット、音声スペクトラムを含む事前生成動画
 - `chart.json`: 自動生成譜面
@@ -164,7 +167,7 @@ FFmpegで `background.mp4` の映像へ `gameplay-alpha.mov` をアルファ合�
 
 ### 視覚確認
 
-`HERE × HEAR` を使い、ノーツの同期、歌詞との重なり、レーンの視認性、遠近感、発光、最終合成のアルファ境界を確認する。ブラウザ版追加時には、同じ時刻の動画フレームとプレイ画面を画像比較する。
+`example/HERE × HEAR/` の素材を使い、ノーツの同期、歌詞との重なり、レーンの視認性、遠近感、発光、最終合成のアルファ境界を確認する。ブラウザ版追加時には、同じ時刻の動画フレームとプレイ画面を画像比較する。
 
 ## 今回確定しない事項
 
