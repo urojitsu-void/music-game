@@ -125,7 +125,7 @@ function errorDetails(error: unknown): { exitCode: unknown; stderr: string } {
 }
 
 function validateBackground(
-  media: ProbeMetadata, expected: ProbeMetadata,
+  media: ProbeMetadata, expected: ProbeMetadata, preserveSourceDimensions: boolean,
 ): void {
   if (!media.video || !media.audio) throw new Error('Background output must contain video and audio');
   if (media.video.codec !== 'h264' || media.audio.codec !== 'aac') {
@@ -143,7 +143,7 @@ function validateBackground(
   if (Math.abs(media.durationSec - expectedDuration) > frame + 0.001) {
     throw new Error('Background output duration does not match the source');
   }
-  if (expected.video
+  if (preserveSourceDimensions && expected.video
     && (media.video.displayWidth !== expected.video.displayWidth
       || media.video.displayHeight !== expected.video.displayHeight)) {
     throw new Error('Background output dimensions do not match the source display');
@@ -192,7 +192,7 @@ export async function createBackground(options: CreateBackgroundOptions): Promis
 
   const outputMedia = await probe(temporaryOutput, { ffprobe: ffprobePath });
   try {
-    validateBackground(outputMedia, sourceMedia);
+    validateBackground(outputMedia, sourceMedia, options.inputs.mode === 'video');
   } catch (error) {
     await rm(temporaryOutput, { force: true });
     throw error;

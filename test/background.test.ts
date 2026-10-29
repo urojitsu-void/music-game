@@ -96,6 +96,50 @@ test('createBackground passes LRC directly and writes a complete atomic error lo
   await assert.rejects(readFile(`${logPath}.tmp`), { code: 'ENOENT' });
 });
 
+test('createBackground ignores embedded MP3 cover dimensions when validating output', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'background-mp3-cover-'));
+  t.after(async () => {
+    const { rm } = await import('node:fs/promises');
+    await rm(root, { recursive: true, force: true });
+  });
+  const outputPath = join(root, 'background.mp4');
+  const source: ProbeMetadata = {
+    durationSec: 5,
+    video: {
+      index: 0, codec: 'mjpeg', encodedWidth: 1400, encodedHeight: 1400,
+      displayWidth: 1400, displayHeight: 1400, rotationDeg: 0,
+      avgFps: 0, isVfr: false, startSec: 0, durationSec: 5,
+    },
+    audio: { index: 1, codec: 'mp3', sampleRate: 44100, channels: 2, startSec: 0, durationSec: 5 },
+  };
+  const output: ProbeMetadata = {
+    durationSec: 5,
+    video: {
+      index: 0, codec: 'h264', encodedWidth: 1280, encodedHeight: 720,
+      displayWidth: 1280, displayHeight: 720, rotationDeg: 0,
+      avgFps: 30, isVfr: false, startSec: 0, durationSec: 5,
+    },
+    audio: { index: 1, codec: 'aac', sampleRate: 44100, channels: 2, startSec: 0, durationSec: 5 },
+  };
+  let probes = 0;
+
+  const result = await createBackground({
+    inputs: {
+      mode: 'mp3', audioPath: join(root, 'song.mp3'),
+      lrcPath: join(root, 'song.lrc'), coverPath: join(root, 'song.png'),
+    },
+    outputPath, logPath: join(root, 'build.log'),
+    runProcessFn: async (_command, args) => {
+      await writeFile(args.at(-1)!, 'encoded');
+      return { stdout: '', stderr: '' };
+    },
+    probeMediaFn: async () => (probes++ === 0 ? source : output),
+  });
+
+  assert.equal(result.media.video?.displayWidth, 1280);
+  assert.equal(result.media.video?.displayHeight, 720);
+});
+
 test('createBackground normalizes video to 30fps and pads short audio', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'background-integration-'));
   t.after(async () => {

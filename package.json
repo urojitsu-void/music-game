@@ -8,7 +8,8 @@
   "scripts": {
     "test": "tsx --test test/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build:example": "tsx src/cli.ts build \"example/HERE × HEAR/HERE × HEAR.mp3\""
+    "build": "node --env-file=.env.default --import tsx src/cli.ts build",
+    "build:example": "npm run build -- \"example/HERE × HEAR/HERE × HEAR.mp3\""
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.13",
