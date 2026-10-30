@@ -43,6 +43,7 @@ export interface RenderAssets {
   readonly perfect: RasterAsset;
   readonly fullCombo: RasterAsset;
   readonly gauge: RasterAsset;
+  readonly gaugeGlow: RasterAsset;
   readonly hitRing: RasterAsset;
 }
 
@@ -115,6 +116,7 @@ interface ContextLike {
   strokeStyle: string | CanvasGradient | CanvasPattern;
   lineWidth: number;
   globalAlpha: number;
+  globalCompositeOperation: GlobalCompositeOperation;
   font: string;
   textAlign: CanvasTextAlign;
   textBaseline: CanvasTextBaseline;
@@ -368,6 +370,13 @@ export function renderFrame(
   context.fillStyle = 'rgba(5, 7, 13, 0.78)';
   context.fillRect(gaugeX - 4, gaugeY - 4, gaugeWidth + 8, gaugeHeight + 8);
   if (assets && state.gauge > 0) {
+    context.save();
+    context.globalCompositeOperation = 'lighter';
+    context.globalAlpha = 0.82;
+    context.drawImage(assets.gaugeGlow.image, 0, 0,
+      assets.gaugeGlow.width * state.gauge, assets.gaugeGlow.height,
+      gaugeX, gaugeY - gaugeHeight * 1.5, gaugeWidth * state.gauge, gaugeHeight * 4);
+    context.restore();
     context.drawImage(assets.gauge.image, 0, 0, assets.gauge.width * state.gauge, assets.gauge.height,
       gaugeX, gaugeY, gaugeWidth * state.gauge, gaugeHeight);
   } else {

@@ -55,6 +55,7 @@ class RecordingContext {
   strokeStyle: string | CanvasGradient | CanvasPattern = '';
   lineWidth = 1;
   globalAlpha = 1;
+  globalCompositeOperation: GlobalCompositeOperation = 'source-over';
   font = '';
   textAlign: CanvasTextAlign = 'start';
   textBaseline: CanvasTextBaseline = 'alphabetic';

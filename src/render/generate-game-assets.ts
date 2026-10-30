@@ -69,6 +69,19 @@ function rainbowBar(): Buffer {
   return canvas.toBuffer('image/png');
 }
 
+function rainbowBarGlow(): Buffer {
+  const canvas = createCanvas(1024, 96);
+  const context = canvas.getContext('2d');
+  for (let x = 0; x < 1024; x += 16) {
+    const color = `hsl(${x / 1024 * 300} 100% 58%)`;
+    context.fillStyle = color;
+    context.shadowColor = color;
+    context.shadowBlur = 28;
+    context.fillRect(x, 36, 20, 24);
+  }
+  return canvas.toBuffer('image/png');
+}
+
 function hitRing(): Buffer {
   const canvas = createCanvas(512, 512);
   const context = canvas.getContext('2d');
@@ -96,5 +109,6 @@ await Promise.all([
   writeFile(join(OUTPUT, 'perfect.png'), textAsset('PERFECT', ['#fff177', '#d06b00'], 560, 150)),
   writeFile(join(OUTPUT, 'full-combo.png'), textAsset('FULL COMBO', ['#fff177', '#e32572'], 900, 190)),
   writeFile(join(OUTPUT, 'rainbow-bar.png'), rainbowBar()),
+  writeFile(join(OUTPUT, 'rainbow-bar-glow.png'), rainbowBarGlow()),
   writeFile(join(OUTPUT, 'hit-ring.png'), hitRing()),
 ]);
