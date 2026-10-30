@@ -8,6 +8,7 @@
   "scripts": {
     "test": "tsx --test test/**/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "assets:game": "tsx src/render/generate-game-assets.ts",
     "build": "node --env-file=.env.default --import tsx src/cli.ts build",
     "build:example": "npm run build -- \"example/HERE × HEAR/HERE × HEAR.mp3\""
   },

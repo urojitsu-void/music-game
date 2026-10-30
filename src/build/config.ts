@@ -33,7 +33,7 @@ type ValidatedConfig = Partial<Omit<ResolvedConfig, 'layout'>> & {
 const CONFIG_KEYS = ['difficulty', 'seed', 'outDir', 'cover', 'layout'];
 const LAYOUT_KEYS = ['gameX', 'gameY', 'gameWidth', 'gameHeight'];
 const DEFAULT_LAYOUT = Object.freeze({
-  gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68,
+  gameX: 0.5, gameY: 0.68, gameWidth: 0.58, gameHeight: 0.55,
 });
 
 function validateObject(

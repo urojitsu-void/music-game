@@ -29,7 +29,7 @@ test('loadConfig returns exact defaults as deeply immutable plain data', async (
   const layout = config.layout;
   assert.deepEqual(config, {
     difficulty: 'normal', seed: 12345, outDir: join(options.cwd, 'output'), cover: null,
-    layout: { gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68 },
+    layout: { gameX: 0.5, gameY: 0.68, gameWidth: 0.58, gameHeight: 0.55 },
   });
   assert.equal(Object.getPrototypeOf(config), Object.prototype);
   assert.equal(Object.getPrototypeOf(config.layout), Object.prototype);
@@ -63,7 +63,7 @@ test('CLI overrides config and merges partial layouts without mutating CLI', asy
   });
   assert.deepEqual(await loadConfig({ ...options, cli }), {
     difficulty: 'hard', seed: 0, outDir: join(options.cwd, 'cli-out'), cover: null,
-    layout: { gameX: 0.4, gameY: 0.9, gameWidth: 0.4, gameHeight: 0.68 },
+    layout: { gameX: 0.4, gameY: 0.9, gameWidth: 0.4, gameHeight: 0.55 },
   });
 });
 

@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from 'node:fs/promises';
+import { copyFile, cp, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +18,7 @@ export async function bundleRenderer(outputDirectory: string): Promise<RendererB
   const scriptPath = join(outputDirectory, 'renderer.js');
   await Promise.all([
     copyFile(join(SOURCE_DIRECTORY, 'renderer.html'), htmlPath),
+    cp(join(SOURCE_DIRECTORY, 'assets'), join(outputDirectory, 'assets'), { recursive: true }),
     build({
       entryPoints: [join(SOURCE_DIRECTORY, 'renderer-app.tsx')],
       outfile: scriptPath,

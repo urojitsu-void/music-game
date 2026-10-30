@@ -3,11 +3,18 @@ import { resolve } from 'node:path';
 
 export type ChartDifficulty = 'easy' | 'normal' | 'hard';
 
-export interface ChartNote {
+interface ChartNoteBase {
   readonly time: number;
   readonly lane: number;
-  readonly type: 'tap';
 }
+
+export interface TapNote extends ChartNoteBase { readonly type: 'tap' }
+export interface HoldNote extends ChartNoteBase { readonly type: 'hold'; readonly duration: number }
+export interface FlickNote extends ChartNoteBase {
+  readonly type: 'flick';
+  readonly direction: 'left' | 'right' | 'up' | 'down';
+}
+export type ChartNote = TapNote | HoldNote | FlickNote;
 
 type StatisticValue = null | boolean | number | string
   | readonly StatisticValue[] | { readonly [key: string]: StatisticValue };
@@ -80,8 +87,26 @@ export function validateChart(value: unknown): Chart {
     if (!Number.isInteger(note.lane) || (note.lane as number) < 0 || (note.lane as number) > 3) {
       throw new RangeError(`${path}.lane must be an integer from 0 to 3`);
     }
-    if (note.type !== 'tap') throw new TypeError(`${path}.type must be tap`);
-    const parsed: ChartNote = { time, lane: note.lane as number, type: 'tap' };
+    let parsed: ChartNote;
+    if (note.type === 'tap') {
+      parsed = { time, lane: note.lane as number, type: 'tap' };
+    } else if (note.type === 'hold') {
+      const noteDuration = finite(note.duration, `${path}.duration`);
+      if (noteDuration <= 0 || time + noteDuration > duration) {
+        throw new RangeError(`${path}.duration must be positive and end within chart.duration`);
+      }
+      parsed = { time, lane: note.lane as number, type: 'hold', duration: noteDuration };
+    } else if (note.type === 'flick') {
+      if (note.direction !== 'left' && note.direction !== 'right'
+        && note.direction !== 'up' && note.direction !== 'down') {
+        throw new TypeError(`${path}.direction must be left, right, up, or down`);
+      }
+      parsed = {
+        time, lane: note.lane as number, type: 'flick', direction: note.direction,
+      };
+    } else {
+      throw new TypeError(`${path}.type must be tap, hold, or flick`);
+    }
     if (previous && (parsed.time < previous.time
       || (parsed.time === previous.time && parsed.lane < previous.lane))) {
       throw new Error('chart.notes must be sorted by time then lane');

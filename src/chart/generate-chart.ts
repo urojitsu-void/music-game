@@ -9,12 +9,13 @@ interface DifficultyConfig {
   readonly subdivision: number;
   readonly eventStep: number;
   readonly chords: boolean;
+  readonly specialNotes: boolean;
 }
 
 const DIFFICULTIES: Readonly<Record<ChartDifficulty, DifficultyConfig>> = {
-  easy: { subdivision: 2, eventStep: 1, chords: false },
-  normal: { subdivision: 4, eventStep: 1, chords: false },
-  hard: { subdivision: 4, eventStep: 1, chords: true },
+  easy: { subdivision: 2, eventStep: 1, chords: false, specialNotes: false },
+  normal: { subdivision: 4, eventStep: 1, chords: false, specialNotes: true },
+  hard: { subdivision: 4, eventStep: 1, chords: true, specialNotes: true },
 };
 
 export interface GenerateChartOptions {
@@ -62,13 +63,29 @@ export function generateChart(options: GenerateChartOptions): Chart {
   const notes: ChartNote[] = [];
   let previousLane = -1;
 
+  const beatDuration = 60 / options.tempo.bpm;
   for (const event of events) {
     const lane = chooseLane(counts, previousLane, nextRandom);
     counts[lane]! += 1;
-    notes.push({ time: round(event.time), lane, type: 'tap' });
+    const strongBeat = event.index % config.subdivision === 0;
+    const holdDuration = Math.min(
+      beatDuration * (options.difficulty === 'hard' ? 2 : 1),
+      options.analysis.duration - event.time,
+    );
+    if (config.specialNotes && strongBeat
+      && event.index % (config.subdivision * 4) === 0 && holdDuration >= beatDuration * 0.75) {
+      notes.push({ time: round(event.time), lane, type: 'hold', duration: round(holdDuration) });
+    } else if (config.specialNotes && event.band === 2) {
+      const directions = ['left', 'up', 'right', 'down'] as const;
+      notes.push({
+        time: round(event.time), lane, type: 'flick',
+        direction: directions[Math.abs(event.index) % directions.length]!,
+      });
+    } else {
+      notes.push({ time: round(event.time), lane, type: 'tap' });
+    }
     previousLane = lane;
 
-    const strongBeat = event.index % config.subdivision === 0;
     if (config.chords && strongBeat && event.strength >= 2.5) {
       const other = chooseLane(
         counts.map((count, candidate) => count + (candidate === lane ? 1000 : 0)),
@@ -94,6 +111,11 @@ export function generateChart(options: GenerateChartOptions): Chart {
     notes,
     statistics: {
       noteCount: notes.length,
+      noteTypes: {
+        tap: notes.filter((note) => note.type === 'tap').length,
+        hold: notes.filter((note) => note.type === 'hold').length,
+        flick: notes.filter((note) => note.type === 'flick').length,
+      },
       notesPerSecond: round(notes.length / options.analysis.duration, 2),
       tempoEstimateScore: options.tempo.confidence,
       phaseCoherence: options.tempo.phaseCoherence,

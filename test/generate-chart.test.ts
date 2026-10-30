@@ -17,9 +17,10 @@ function fixture(): { analysis: AudioAnalysis; tempo: TempoEstimate } {
     for (let offset = -4; offset <= 4; offset += 1) {
       if (rms[frame + offset] !== undefined) rms[frame + offset] = 0.7;
     }
+    const high = index % 5 === 0;
     peaks.push({
       time, strength: Math.round(time * 8) % 8 === 0 ? 3 : 1.4,
-      band: index % 3, bands: [1, 0.7, 0.4], rms: 0.7,
+      band: high ? 2 : index % 2, bands: high ? [0.4, 0.7, 1.4] : [1, 0.7, 0.4], rms: 0.7,
     });
   }
   return {
@@ -64,7 +65,7 @@ test('seed is deterministic and only changes lanes', () => {
   assert.notDeepEqual(first.notes.map((note) => note.lane), changed.notes.map((note) => note.lane));
 });
 
-test('chords are equal-time independent tap notes', () => {
+test('chords are equal-time notes on independent lanes', () => {
   const generated = chart('hard');
   const byTime = new Map<number, typeof generated.notes>();
   for (const note of generated.notes) {
@@ -74,7 +75,18 @@ test('chords are equal-time independent tap notes', () => {
   const chords = [...byTime.values()].filter((notes) => notes.length > 1);
   assert(chords.length > 0);
   for (const notes of chords) {
-    assert(notes.every((note) => note.type === 'tap'));
     assert.equal(new Set(notes.map((note) => note.lane)).size, notes.length);
+  }
+});
+
+test('normal and hard charts contain tap, hold, and directional flick notes', () => {
+  for (const difficulty of ['normal', 'hard'] as const) {
+    const generated = chart(difficulty);
+    const types = new Set(generated.notes.map((note) => note.type));
+    assert.deepEqual(types, new Set(['tap', 'hold', 'flick']));
+    for (const note of generated.notes) {
+      if (note.type === 'hold') assert(note.duration > 0);
+      if (note.type === 'flick') assert(['left', 'right', 'up', 'down'].includes(note.direction));
+    }
   }
 });

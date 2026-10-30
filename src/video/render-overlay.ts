@@ -11,6 +11,7 @@ import { probeMedia, type ProbeMetadata } from '../media/probe.ts';
 import { spawnProcess } from '../platform/process.ts';
 import { writeStageErrorLog } from '../platform/stage-log.ts';
 import { renderFrame, type CanvasLike } from '../render/canvas-renderer.ts';
+import { loadNodeRenderAssets } from '../render/node-render-assets.ts';
 
 const FPS = 30;
 
@@ -51,8 +52,9 @@ export interface FrameRendererOptions {
 
 export function createNodeFrameRenderer(options: FrameRendererOptions): FrameRenderer {
   const canvas = createCanvas(options.width, options.height);
+  const assets = loadNodeRenderAssets();
   return {
-    render(timeSeconds) {
+    async render(timeSeconds) {
       renderFrame(
         canvas as unknown as CanvasLike,
         options.chart,
@@ -60,6 +62,7 @@ export function createNodeFrameRenderer(options: FrameRendererOptions): FrameRen
         options.layout,
         null,
         { mode: 'autoplay' },
+        await assets,
       );
       return canvas.toBuffer('image/png');
     },

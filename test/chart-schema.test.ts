@@ -21,15 +21,15 @@ function validChart(): Chart {
     seed: 12345,
     notes: [
       { time: 1, lane: 0, type: 'tap' },
-      { time: 1, lane: 2, type: 'tap' },
-      { time: 2, lane: 1, type: 'tap' },
+      { time: 1, lane: 2, type: 'flick', direction: 'right' },
+      { time: 2, lane: 1, type: 'hold', duration: 1.5 },
     ],
     statistics: {},
   };
 }
 
 test('validateChart accepts same-time notes on different lanes', () => {
-  assert.equal(validateChart(validChart()).notes.length, 3);
+  assert.deepEqual(validateChart(validChart()).notes, validChart().notes);
 });
 
 for (const [name, mutate, path] of [
@@ -54,7 +54,10 @@ test('validateChart rejects note range, type, order, and duplicates with paths',
   const cases: Array<[unknown, RegExp]> = [
     [{ ...validChart(), notes: [{ time: -1, lane: 0, type: 'tap' }] }, /chart\.notes\[0\]\.time/],
     [{ ...validChart(), notes: [{ time: 1, lane: 4, type: 'tap' }] }, /chart\.notes\[0\]\.lane/],
-    [{ ...validChart(), notes: [{ time: 1, lane: 0, type: 'hold' }] }, /chart\.notes\[0\]\.type/],
+    [{ ...validChart(), notes: [{ time: 1, lane: 0, type: 'slide' }] }, /chart\.notes\[0\]\.type/],
+    [{ ...validChart(), notes: [{ time: 1, lane: 0, type: 'hold' }] }, /chart\.notes\[0\]\.duration/],
+    [{ ...validChart(), notes: [{ time: 9, lane: 0, type: 'hold', duration: 2 }] }, /chart\.notes\[0\]\.duration/],
+    [{ ...validChart(), notes: [{ time: 1, lane: 0, type: 'flick', direction: 'diagonal' }] }, /chart\.notes\[0\]\.direction/],
     [{ ...validChart(), notes: [{ time: 2, lane: 0, type: 'tap' }, { time: 1, lane: 0, type: 'tap' }] }, /chart\.notes/],
     [{ ...validChart(), notes: [{ time: 1, lane: 0, type: 'tap' }, { time: 1, lane: 0, type: 'tap' }] }, /chart\.notes\[1\]/],
   ];

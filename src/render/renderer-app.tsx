@@ -4,8 +4,9 @@ import { createRoot } from 'react-dom/client';
 import type { Layout } from '../build/config.ts';
 import type { Chart } from '../chart/schema.ts';
 import {
-  renderFrame, type CanvasLike, type RenderTheme,
+  renderFrame, type CanvasLike, type RenderAssets, type RenderTheme,
 } from './canvas-renderer.ts';
+import { loadBrowserRenderAssets } from './browser-render-assets.ts';
 
 export interface RendererInitialization {
   readonly chart: Chart;
@@ -29,10 +30,12 @@ declare global {
 export function RendererScreen(): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const initializationRef = useRef<RendererInitialization | null>(null);
+  const assetsRef = useRef<RenderAssets | undefined>(undefined);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) throw new Error('Renderer canvas is unavailable');
+    void loadBrowserRenderAssets().then((assets) => { assetsRef.current = assets; });
     const api: RendererApi = {
       initialize(options) {
         if (!Number.isInteger(options.width) || options.width <= 0
@@ -53,6 +56,7 @@ export function RendererScreen(): React.JSX.Element {
           initialization.layout,
           initialization.theme,
           { mode: 'autoplay' },
+          assetsRef.current,
         );
       },
     };
