@@ -74,6 +74,10 @@ export function comboNumberPalette(combo: number): readonly [string, string, str
   return ['#ffffff', '#ffffff', '#7b8296'];
 }
 
+export function glowIntensity(timeSeconds: number, cyclesPerSecond: number): number {
+  return (Math.sin(timeSeconds * Math.PI * 2 * cyclesPerSecond) + 1) / 2;
+}
+
 export function deriveFrameState(
   chart: Chart,
   timeSeconds: number,
@@ -391,10 +395,10 @@ export function renderFrame(
   if (assets && state.gauge > 0) {
     context.save();
     context.globalCompositeOperation = 'lighter';
-    context.globalAlpha = 0.82;
+    context.globalAlpha = 0.35 + glowIntensity(timeSeconds, 0.65) * 0.65;
     context.drawImage(assets.gaugeGlow.image, 0, 0,
       assets.gaugeGlow.width * state.gauge, assets.gaugeGlow.height,
-      gaugeX, gaugeY - gaugeHeight * 2.25, gaugeWidth * state.gauge, gaugeHeight * 5.5);
+      gaugeX, gaugeY - gaugeHeight * 0.8, gaugeWidth * state.gauge, gaugeHeight * 2.6);
     context.restore();
     context.drawImage(assets.gauge.image, 0, 0, assets.gauge.width * state.gauge, assets.gauge.height,
       gaugeX, gaugeY, gaugeWidth * state.gauge, gaugeHeight);
@@ -439,9 +443,11 @@ export function renderFrame(
     if (assets) {
       context.save();
       context.globalCompositeOperation = 'lighter';
-      context.globalAlpha = 0.78;
+      context.globalAlpha = Math.min(
+        1, 0.35 + glowIntensity(timeSeconds, 1.2) * 0.5 + state.hitPulse * 0.25,
+      );
       drawAsset(context, assets.comboGlow, layout.judgmentCenterX + canvas.width * 0.055,
-        comboY, canvas.width * 0.22 * bounce);
+        comboY, canvas.width * 0.21 * bounce);
       context.restore();
       drawAsset(context, assets.combo, layout.judgmentCenterX + canvas.width * 0.055,
         comboY, canvas.width * 0.17 * bounce);

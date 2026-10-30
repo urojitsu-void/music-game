@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  comboNumberPalette, deriveFrameState, renderFrame,
+  comboNumberPalette, deriveFrameState, glowIntensity, renderFrame,
 } from '../src/render/canvas-renderer.ts';
 import type { Chart } from '../src/chart/schema.ts';
 
@@ -57,6 +57,12 @@ test('combo number palette changes at score thresholds', () => {
   assert.equal(comboNumberPalette(100)[1], '#36f58a');
   assert.equal(comboNumberPalette(200)[1], '#ffe04b');
   assert.equal(comboNumberPalette(400)[1], '#ff1744');
+});
+
+test('glow intensity oscillates as a bounded sine wave', () => {
+  assert.equal(glowIntensity(0, 1), 0.5);
+  assert.equal(glowIntensity(0.25, 1), 1);
+  assert.equal(glowIntensity(0.75, 1), 0);
 });
 
 class RecordingContext {

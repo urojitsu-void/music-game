@@ -72,18 +72,35 @@ function rainbowBar(): Buffer {
 function rainbowBarGlow(): Buffer {
   const canvas = createCanvas(1024, 128);
   const context = canvas.getContext('2d');
-  const rainbow = context.createLinearGradient(0, 0, 1024, 0);
+  const source = createCanvas(1024, 128);
+  const sourceContext = source.getContext('2d');
+  const rainbow = sourceContext.createLinearGradient(0, 0, 1024, 0);
   ['#ff1744', '#ff9100', '#ffea00', '#00e676', '#00b0ff', '#651fff', '#f500d4']
     .forEach((color, index, values) => rainbow.addColorStop(index / (values.length - 1), color));
-  context.fillStyle = rainbow; context.fillRect(0, 0, 1024, 128);
-  context.globalCompositeOperation = 'destination-in';
-  const fade = context.createLinearGradient(0, 0, 0, 128);
-  fade.addColorStop(0, 'rgba(255,255,255,0)');
-  fade.addColorStop(0.28, 'rgba(255,255,255,0.35)');
-  fade.addColorStop(0.5, 'rgba(255,255,255,0.95)');
-  fade.addColorStop(0.72, 'rgba(255,255,255,0.35)');
-  fade.addColorStop(1, 'rgba(255,255,255,0)');
-  context.fillStyle = fade; context.fillRect(0, 0, 1024, 128);
+  sourceContext.fillStyle = rainbow; sourceContext.fillRect(0, 52, 1024, 24);
+  context.filter = 'blur(22px)';
+  context.globalAlpha = 0.96;
+  context.drawImage(source, 0, 0);
+  context.filter = 'blur(9px)';
+  context.drawImage(source, 0, 0);
+  return canvas.toBuffer('image/png');
+}
+
+function comboAsset(): Buffer {
+  const canvas = createCanvas(460, 150);
+  const context = canvas.getContext('2d');
+  const gradient = context.createLinearGradient(0, 25, 0, 125);
+  gradient.addColorStop(0, '#ff6576');
+  gradient.addColorStop(0.42, '#ff0038');
+  gradient.addColorStop(1, '#a60024');
+  context.font = '900 98px "Avenir Next"';
+  context.textAlign = 'center'; context.textBaseline = 'middle';
+  context.strokeStyle = '#260009'; context.lineWidth = 8;
+  context.strokeText('COMBO', 230, 75);
+  context.fillStyle = gradient;
+  context.fillText('COMBO', 230, 75);
+  context.strokeStyle = 'rgba(255,190,200,0.72)'; context.lineWidth = 2;
+  context.strokeText('COMBO', 230, 75);
   return canvas.toBuffer('image/png');
 }
 
@@ -120,7 +137,7 @@ await Promise.all([
   writeFile(join(OUTPUT, 'note-hold.png'), sphere(['#ffe0fb', '#ff3fcf', '#73005d'])),
   ...(['left', 'right', 'up', 'down'] as const).map((direction) =>
     writeFile(join(OUTPUT, `note-flick-${direction}.png`), sphere(['#fffbd0', '#ffc928', '#9d4800'], direction))),
-  writeFile(join(OUTPUT, 'combo.png'), textAsset('COMBO', ['#ff416c', '#8b001d'], 420, 140)),
+  writeFile(join(OUTPUT, 'combo.png'), comboAsset()),
   writeFile(join(OUTPUT, 'combo-glow.png'), comboGlow()),
   writeFile(join(OUTPUT, 'perfect.png'), textAsset('PERFECT', ['#fff177', '#d06b00'], 560, 150)),
   writeFile(join(OUTPUT, 'full-combo.png'), textAsset('FULL COMBO', ['#fff177', '#e32572'], 900, 190)),
