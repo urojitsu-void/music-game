@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { deriveFrameState, renderFrame } from '../src/render/canvas-renderer.ts';
+import {
+  comboNumberPalette, deriveFrameState, renderFrame,
+} from '../src/render/canvas-renderer.ts';
 import type { Chart } from '../src/chart/schema.ts';
 
 function chart(): Chart {
@@ -47,6 +49,14 @@ test('full combo waits for the final hold to finish', () => {
   };
   assert.equal(deriveFrameState(held, 3.5).fullComboProgress, null);
   assert.equal(deriveFrameState(held, 4).fullComboProgress, 0);
+});
+
+test('combo number palette changes at score thresholds', () => {
+  assert.equal(comboNumberPalette(1)[1], '#ffffff');
+  assert.equal(comboNumberPalette(50)[1], '#38dfff');
+  assert.equal(comboNumberPalette(100)[1], '#36f58a');
+  assert.equal(comboNumberPalette(200)[1], '#ffe04b');
+  assert.equal(comboNumberPalette(400)[1], '#ff1744');
 });
 
 class RecordingContext {
@@ -95,6 +105,7 @@ test('renderFrame clears transparency and draws lines, circles, glow, and combo'
   };
   const layout = { gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68 };
   renderFrame(canvas, chart(), 1, layout, null, { mode: 'autoplay' });
+  renderFrame(canvas, chart(), 2.06, layout, null, { mode: 'autoplay' });
   renderFrame(canvas, chart(), 3.06, layout, null, { mode: 'autoplay' });
 
   assert.deepEqual(context.calls[0], { name: 'clearRect', args: [0, 0, 1280, 720] });
@@ -109,4 +120,20 @@ test('renderFrame clears transparency and draws lines, circles, glow, and combo'
     assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === rank));
   }
   assert(context.calls.filter((call) => call.name === 'fillRect').length >= 2);
+});
+
+test('full combo hides the entire playfield but keeps gauge and combo UI', () => {
+  const context = new RecordingContext();
+  const canvas = {
+    width: 1280, height: 720,
+    getContext: (kind: string) => kind === '2d' ? context : null,
+  };
+  renderFrame(canvas, chart(), 3.5,
+    { gameX: 0.5, gameY: 0.68, gameWidth: 0.58, gameHeight: 0.55 },
+    null, { mode: 'autoplay' });
+
+  assert.equal(context.calls.some((call) => call.name === 'moveTo'), false);
+  assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === '3 COMBO'));
+  assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === 'FULL COMBO'));
+  assert(context.calls.some((call) => call.name === 'fillRect'));
 });

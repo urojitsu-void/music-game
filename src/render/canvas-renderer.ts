@@ -40,6 +40,7 @@ export interface RenderAssets {
   readonly hold: RasterAsset;
   readonly flick: Readonly<Record<'left' | 'right' | 'up' | 'down', RasterAsset>>;
   readonly combo: RasterAsset;
+  readonly comboGlow: RasterAsset;
   readonly perfect: RasterAsset;
   readonly fullCombo: RasterAsset;
   readonly gauge: RasterAsset;
@@ -63,6 +64,14 @@ export interface FrameState {
   readonly gauge: number;
   readonly hitPulse: number;
   readonly fullComboProgress: number | null;
+}
+
+export function comboNumberPalette(combo: number): readonly [string, string, string] {
+  if (combo >= 400) return ['#ff8aa4', '#ff1744', '#870019'];
+  if (combo >= 200) return ['#fff6a0', '#ffe04b', '#a65a00'];
+  if (combo >= 100) return ['#b9ffd5', '#36f58a', '#08743c'];
+  if (combo >= 50) return ['#b9f7ff', '#38dfff', '#00688e'];
+  return ['#ffffff', '#ffffff', '#7b8296'];
 }
 
 export function deriveFrameState(
@@ -273,98 +282,99 @@ export function renderFrame(
   const state = deriveFrameState(chart, timeSeconds);
   context.clearRect(0, 0, canvas.width, canvas.height);
 
-  for (let lane = 0; lane < 4; lane += 1) {
-    const topLeft = lanePoint(layout, lane, 0);
-    const topRight = lanePoint(layout, lane + 1, 0);
-    const bottomRight = lanePoint(layout, lane + 1, 1);
-    const bottomLeft = lanePoint(layout, lane, 1);
-    context.fillStyle = lane % 2 === 0
-      ? 'rgba(45, 220, 255, 0.095)' : 'rgba(255, 70, 220, 0.075)';
-    context.beginPath();
-    context.moveTo(topLeft.x, topLeft.y);
-    context.lineTo(topRight.x, topRight.y);
-    context.lineTo(bottomRight.x, bottomRight.y);
-    context.lineTo(bottomLeft.x, bottomLeft.y);
-    context.lineTo(topLeft.x, topLeft.y);
-    context.fill();
-  }
-  context.lineWidth = Math.max(2, canvas.width / 640);
-  for (let lane = 0; lane < 4; lane += 1) {
-    const top = lanePoint(layout, lane + 0.5, 0);
-    const bottom = lanePoint(layout, lane + 0.5, 1);
-    const railColor = 'rgba(255, 255, 255, 0.82)';
-    context.save();
-    context.strokeStyle = railColor;
-    context.beginPath();
-    context.moveTo(top.x, top.y);
-    context.lineTo(bottom.x, bottom.y);
-    context.stroke();
-    context.restore();
-  }
-  const judgmentLeft = lanePoint(layout, 0, 1);
-  const judgmentRight = lanePoint(layout, 4, 1);
-  context.strokeStyle = colors.judgmentColor;
-  context.lineWidth = Math.max(2, canvas.width / 500);
-  context.save();
-  context.beginPath();
-  context.moveTo(judgmentLeft.x, judgmentLeft.y);
-  context.lineTo(judgmentRight.x, judgmentRight.y);
-  context.stroke();
-  context.restore();
-
-  for (let lane = 0; lane < 4; lane += 1) {
-    const target = projectNote(layout, lane, 1);
-    context.strokeStyle = colors.targetColor;
-    context.lineWidth = Math.max(2, target.radius * 0.16);
-    context.save();
-    const pulse = 1.12 + Math.sin(timeSeconds * 7 + lane * 0.8) * 0.1;
-    circle(context, target, target.radius * pulse);
-    context.stroke();
-    circle(context, target, target.radius * 0.62);
-    context.stroke();
-    context.restore();
-  }
-  for (const note of state.notes) {
-    drawNote(context, note, projectNote(layout, note.lane, note.progress), layout, colors, assets);
-  }
-  for (const hit of state.hits) {
-    const point = projectNote(layout, hit.lane, 1);
-    context.save();
-    context.globalAlpha = 1 - hit.progress;
-    if (assets) {
-      const size = point.radius * (6 + hit.progress * 8);
-      for (let layer = 0; layer < 3; layer += 1) {
-        context.globalAlpha = (1 - hit.progress) * (1 - layer * 0.18);
-        drawRotatedAsset(context, assets.hitRing, point.x, point.y,
-          size * (1 - layer * 0.19), hit.progress * Math.PI * (2.4 + layer) + layer * 0.72);
-      }
-      context.globalAlpha = 1 - hit.progress;
+  if (state.fullComboProgress === null) {
+    for (let lane = 0; lane < 4; lane += 1) {
+      const topLeft = lanePoint(layout, lane, 0);
+      const topRight = lanePoint(layout, lane + 1, 0);
+      const bottomRight = lanePoint(layout, lane + 1, 1);
+      const bottomLeft = lanePoint(layout, lane, 1);
+      context.fillStyle = 'rgba(255, 255, 255, 0.035)';
+      context.beginPath();
+      context.moveTo(topLeft.x, topLeft.y);
+      context.lineTo(topRight.x, topRight.y);
+      context.lineTo(bottomRight.x, bottomRight.y);
+      context.lineTo(bottomLeft.x, bottomLeft.y);
+      context.lineTo(topLeft.x, topLeft.y);
+      context.fill();
     }
-    else {
-      context.strokeStyle = colors.hitColor;
-      context.lineWidth = Math.max(2, point.radius * 0.18);
-      circle(context, point, point.radius * (1.2 + hit.progress * 1.8));
+    context.lineWidth = Math.max(2, canvas.width / 640);
+    for (let lane = 0; lane < 4; lane += 1) {
+      const top = lanePoint(layout, lane + 0.5, 0);
+      const bottom = lanePoint(layout, lane + 0.5, 1);
+      const railColor = 'rgba(255, 255, 255, 0.82)';
+      context.save();
+      context.strokeStyle = railColor;
+      context.beginPath();
+      context.moveTo(top.x, top.y);
+      context.lineTo(bottom.x, bottom.y);
       context.stroke();
+      context.restore();
     }
-    context.strokeStyle = colors.textOutline;
-    context.lineWidth = Math.max(5, canvas.height * 0.008);
-    context.font = `900 ${Math.max(24, canvas.height * 0.052)}px sans-serif`;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    const perfectY = point.y - point.radius * 3.4;
-    if (assets) {
-      const perfectScale = 1 + (1 - hit.progress) * 0.32;
-      drawAsset(context, assets.perfect, point.x, perfectY, canvas.width * 0.19 * perfectScale);
-    }
-    else {
-      context.strokeText('PERFECT', point.x, perfectY);
-      context.fillStyle = colors.flickColor;
-      context.fillText('PERFECT', point.x, perfectY);
-    }
+    const judgmentLeft = lanePoint(layout, 0, 1);
+    const judgmentRight = lanePoint(layout, 4, 1);
+    context.strokeStyle = colors.judgmentColor;
+    context.lineWidth = Math.max(2, canvas.width / 500);
+    context.save();
+    context.beginPath();
+    context.moveTo(judgmentLeft.x, judgmentLeft.y);
+    context.lineTo(judgmentRight.x, judgmentRight.y);
+    context.stroke();
     context.restore();
+
+    for (let lane = 0; lane < 4; lane += 1) {
+      const target = projectNote(layout, lane, 1);
+      context.strokeStyle = colors.targetColor;
+      context.lineWidth = Math.max(2, target.radius * 0.16);
+      context.save();
+      const pulse = 1.12 + Math.sin(timeSeconds * 7 + lane * 0.8) * 0.1;
+      circle(context, target, target.radius * pulse);
+      context.stroke();
+      circle(context, target, target.radius * 0.62);
+      context.stroke();
+      context.restore();
+    }
+    for (const note of state.notes) {
+      drawNote(context, note, projectNote(layout, note.lane, note.progress), layout, colors, assets);
+    }
+    for (const hit of state.hits) {
+      const point = projectNote(layout, hit.lane, 1);
+      context.save();
+      context.globalAlpha = 1 - hit.progress;
+      if (assets) {
+        const size = point.radius * (6 + hit.progress * 8);
+        for (let layer = 0; layer < 3; layer += 1) {
+          context.globalAlpha = (1 - hit.progress) * (1 - layer * 0.18);
+          drawRotatedAsset(context, assets.hitRing, point.x, point.y,
+            size * (1 - layer * 0.19), hit.progress * Math.PI * (2.4 + layer) + layer * 0.72);
+        }
+        context.globalAlpha = 1 - hit.progress;
+      }
+      else {
+        context.strokeStyle = colors.hitColor;
+        context.lineWidth = Math.max(2, point.radius * 0.18);
+        circle(context, point, point.radius * (1.2 + hit.progress * 1.8));
+        context.stroke();
+      }
+      context.strokeStyle = colors.textOutline;
+      context.lineWidth = Math.max(5, canvas.height * 0.008);
+      context.font = `900 ${Math.max(24, canvas.height * 0.052)}px sans-serif`;
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      const perfectY = point.y - point.radius * 3.4;
+      if (assets) {
+        const perfectScale = 1 + (1 - hit.progress) * 0.32;
+        drawAsset(context, assets.perfect, point.x, perfectY, canvas.width * 0.19 * perfectScale);
+      }
+      else {
+        context.strokeText('PERFECT', point.x, perfectY);
+        context.fillStyle = colors.flickColor;
+        context.fillText('PERFECT', point.x, perfectY);
+      }
+      context.restore();
+    }
   }
   const gaugeWidth = canvas.width * 0.36;
-  const gaugeHeight = Math.max(10, canvas.height * 0.018);
+  const gaugeHeight = Math.max(20, canvas.height * 0.032);
   const gaugeX = layout.judgmentCenterX - gaugeWidth / 2;
   const gaugeY = canvas.height * 0.025;
   context.fillStyle = 'rgba(5, 7, 13, 0.78)';
@@ -375,7 +385,7 @@ export function renderFrame(
     context.globalAlpha = 0.82;
     context.drawImage(assets.gaugeGlow.image, 0, 0,
       assets.gaugeGlow.width * state.gauge, assets.gaugeGlow.height,
-      gaugeX, gaugeY - gaugeHeight * 1.5, gaugeWidth * state.gauge, gaugeHeight * 4);
+      gaugeX, gaugeY - gaugeHeight * 2.25, gaugeWidth * state.gauge, gaugeHeight * 5.5);
     context.restore();
     context.drawImage(assets.gauge.image, 0, 0, assets.gauge.width * state.gauge, assets.gauge.height,
       gaugeX, gaugeY, gaugeWidth * state.gauge, gaugeHeight);
@@ -384,7 +394,7 @@ export function renderFrame(
     context.fillRect(gaugeX, gaugeY, gaugeWidth * state.gauge, gaugeHeight);
   }
   const ranks = ['D', 'C', 'B', 'A', 'S'] as const;
-  context.font = `900 ${Math.max(11, gaugeHeight * 0.78)}px "Avenir Next", sans-serif`;
+  context.font = `900 ${Math.max(16, gaugeHeight * 0.72)}px "Avenir Next", sans-serif`;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   context.lineWidth = Math.max(2, gaugeHeight * 0.18);
@@ -392,15 +402,21 @@ export function renderFrame(
     const threshold = (index + 1) / ranks.length;
     const x = gaugeX + gaugeWidth * (index + 0.5) / ranks.length;
     context.strokeStyle = 'rgba(0, 0, 0, 0.9)';
-    context.fillStyle = state.gauge >= threshold - 0.2 ? '#ffffff' : 'rgba(255,255,255,0.48)';
+    context.fillStyle = state.gauge >= threshold - 0.2 ? '#ffffff' : 'rgba(255,255,255,0.78)';
     context.strokeText(ranks[index]!, x, gaugeY + gaugeHeight / 2);
     context.fillText(ranks[index]!, x, gaugeY + gaugeHeight / 2);
+    if (index < ranks.length - 1) {
+      context.fillStyle = 'rgba(255,255,255,0.72)';
+      context.fillRect(gaugeX + gaugeWidth * (index + 1) / ranks.length - 1,
+        gaugeY, 2, gaugeHeight);
+    }
   }
   if (state.combo > 0) {
     const bounce = 1 + state.hitPulse * 0.28;
     const comboY = gaugeY + gaugeHeight + canvas.height * 0.052;
+    const palette = comboNumberPalette(state.combo);
     const numberGradient = context.createLinearGradient(0, comboY - canvas.height * 0.04, 0, comboY + canvas.height * 0.04);
-    numberGradient.addColorStop(0, '#ff8ba8'); numberGradient.addColorStop(0.48, '#ff1744'); numberGradient.addColorStop(1, '#850019');
+    numberGradient.addColorStop(0, palette[0]); numberGradient.addColorStop(0.48, palette[1]); numberGradient.addColorStop(1, palette[2]);
     context.fillStyle = numberGradient;
     context.strokeStyle = colors.textOutline;
     context.lineWidth = Math.max(6, canvas.height * 0.011);
@@ -412,6 +428,12 @@ export function renderFrame(
     context.strokeText(comboText, numberX, comboY);
     context.fillText(comboText, numberX, comboY);
     if (assets) {
+      context.save();
+      context.globalCompositeOperation = 'lighter';
+      context.globalAlpha = 0.78;
+      drawAsset(context, assets.comboGlow, layout.judgmentCenterX + canvas.width * 0.055,
+        comboY, canvas.width * 0.22 * bounce);
+      context.restore();
       drawAsset(context, assets.combo, layout.judgmentCenterX + canvas.width * 0.055,
         comboY, canvas.width * 0.17 * bounce);
     }

@@ -70,15 +70,30 @@ function rainbowBar(): Buffer {
 }
 
 function rainbowBarGlow(): Buffer {
-  const canvas = createCanvas(1024, 96);
+  const canvas = createCanvas(1024, 128);
   const context = canvas.getContext('2d');
-  for (let x = 0; x < 1024; x += 16) {
-    const color = `hsl(${x / 1024 * 300} 100% 58%)`;
-    context.fillStyle = color;
-    context.shadowColor = color;
-    context.shadowBlur = 28;
-    context.fillRect(x, 36, 20, 24);
-  }
+  const rainbow = context.createLinearGradient(0, 0, 1024, 0);
+  ['#ff1744', '#ff9100', '#ffea00', '#00e676', '#00b0ff', '#651fff', '#f500d4']
+    .forEach((color, index, values) => rainbow.addColorStop(index / (values.length - 1), color));
+  context.fillStyle = rainbow; context.fillRect(0, 0, 1024, 128);
+  context.globalCompositeOperation = 'destination-in';
+  const fade = context.createLinearGradient(0, 0, 0, 128);
+  fade.addColorStop(0, 'rgba(255,255,255,0)');
+  fade.addColorStop(0.28, 'rgba(255,255,255,0.35)');
+  fade.addColorStop(0.5, 'rgba(255,255,255,0.95)');
+  fade.addColorStop(0.72, 'rgba(255,255,255,0.35)');
+  fade.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = fade; context.fillRect(0, 0, 1024, 128);
+  return canvas.toBuffer('image/png');
+}
+
+function comboGlow(): Buffer {
+  const canvas = createCanvas(520, 220);
+  const context = canvas.getContext('2d');
+  context.font = '900 92px "Avenir Next"';
+  context.textAlign = 'center'; context.textBaseline = 'middle';
+  context.fillStyle = '#ff002f'; context.shadowColor = '#ff002f'; context.shadowBlur = 38;
+  context.fillText('COMBO', 260, 110);
   return canvas.toBuffer('image/png');
 }
 
@@ -106,6 +121,7 @@ await Promise.all([
   ...(['left', 'right', 'up', 'down'] as const).map((direction) =>
     writeFile(join(OUTPUT, `note-flick-${direction}.png`), sphere(['#fffbd0', '#ffc928', '#9d4800'], direction))),
   writeFile(join(OUTPUT, 'combo.png'), textAsset('COMBO', ['#ff416c', '#8b001d'], 420, 140)),
+  writeFile(join(OUTPUT, 'combo-glow.png'), comboGlow()),
   writeFile(join(OUTPUT, 'perfect.png'), textAsset('PERFECT', ['#fff177', '#d06b00'], 560, 150)),
   writeFile(join(OUTPUT, 'full-combo.png'), textAsset('FULL COMBO', ['#fff177', '#e32572'], 900, 190)),
   writeFile(join(OUTPUT, 'rainbow-bar.png'), rainbowBar()),
