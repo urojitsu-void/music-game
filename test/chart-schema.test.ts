@@ -32,6 +32,16 @@ test('validateChart accepts same-time notes on different lanes', () => {
   assert.deepEqual(validateChart(validChart()).notes, validChart().notes);
 });
 
+test('validateChart rejects a note during an active hold on the same lane', () => {
+  assert.throws(() => validateChart({
+    ...validChart(),
+    notes: [
+      { time: 1, lane: 0, type: 'hold', duration: 2 },
+      { time: 2, lane: 0, type: 'tap' },
+    ],
+  }), /chart\.notes\[1\].*active hold/);
+});
+
 for (const [name, mutate, path] of [
   ['format', (chart: Record<string, unknown>) => { chart.formatVersion = 2; }, 'chart.formatVersion'],
   ['audio', (chart: Record<string, unknown>) => { chart.audio = ''; }, 'chart.audio'],

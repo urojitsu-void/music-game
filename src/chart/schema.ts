@@ -78,6 +78,7 @@ export function validateChart(value: unknown): Chart {
   if (!Array.isArray(input.notes)) throw new TypeError('chart.notes must be an array');
 
   const notes: ChartNote[] = [];
+  const holdEnds = [0, 0, 0, 0];
   let previous: ChartNote | undefined;
   for (let index = 0; index < input.notes.length; index += 1) {
     const path = `chart.notes[${index}]`;
@@ -114,6 +115,10 @@ export function validateChart(value: unknown): Chart {
     if (previous && parsed.time === previous.time && parsed.lane === previous.lane) {
       throw new Error(`${path} duplicates the previous time and lane`);
     }
+    if (parsed.time < holdEnds[parsed.lane]!) {
+      throw new Error(`${path} overlaps an active hold on lane ${parsed.lane}`);
+    }
+    if (parsed.type === 'hold') holdEnds[parsed.lane] = parsed.time + parsed.duration;
     notes.push(parsed);
     previous = parsed;
   }

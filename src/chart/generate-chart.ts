@@ -41,13 +41,14 @@ function round(value: number, digits = 3): number {
 
 function chooseLane(
   counts: readonly number[], previousLane: number, nextRandom: () => number,
-): number {
-  const candidates = counts.map((count, lane) => ({
+  availableLanes: readonly number[],
+): number | undefined {
+  const candidates = availableLanes.map((lane) => ({
     lane,
-    cost: count * 10 + (lane === previousLane ? 2 : 0) + nextRandom(),
+    cost: counts[lane]! * 10 + (lane === previousLane ? 2 : 0) + nextRandom(),
   }));
   candidates.sort((left, right) => left.cost - right.cost);
-  return candidates[0]!.lane;
+  return candidates[0]?.lane;
 }
 
 export function generateChart(options: GenerateChartOptions): Chart {
@@ -60,12 +61,19 @@ export function generateChart(options: GenerateChartOptions): Chart {
     .filter((_, index) => index % config.eventStep === 0);
   const nextRandom = random(seed);
   const counts = Array.from({ length: lanes }, () => 0);
+  const holdEnds = Array.from({ length: lanes }, () => 0);
   const notes: ChartNote[] = [];
   let previousLane = -1;
 
   const beatDuration = 60 / options.tempo.bpm;
   for (const event of events) {
-    const lane = chooseLane(counts, previousLane, nextRandom);
+    const noteTime = round(event.time);
+    const availableLanes = holdEnds
+      .map((holdEnd, lane) => ({ holdEnd, lane }))
+      .filter(({ holdEnd }) => noteTime >= holdEnd)
+      .map(({ lane }) => lane);
+    const lane = chooseLane(counts, previousLane, nextRandom, availableLanes);
+    if (lane === undefined) continue;
     counts[lane]! += 1;
     const strongBeat = event.index % config.subdivision === 0;
     const holdDuration = Math.min(
@@ -74,26 +82,30 @@ export function generateChart(options: GenerateChartOptions): Chart {
     );
     if (config.specialNotes && strongBeat
       && event.index % (config.subdivision * 4) === 0 && holdDuration >= beatDuration * 0.75) {
-      notes.push({ time: round(event.time), lane, type: 'hold', duration: round(holdDuration) });
+      const duration = round(holdDuration);
+      notes.push({ time: noteTime, lane, type: 'hold', duration });
+      holdEnds[lane] = noteTime + duration;
     } else if (config.specialNotes && event.band === 2) {
       const directions = ['left', 'up', 'right', 'down'] as const;
       notes.push({
-        time: round(event.time), lane, type: 'flick',
+        time: noteTime, lane, type: 'flick',
         direction: directions[Math.abs(event.index) % directions.length]!,
       });
     } else {
-      notes.push({ time: round(event.time), lane, type: 'tap' });
+      notes.push({ time: noteTime, lane, type: 'tap' });
     }
     previousLane = lane;
 
     if (config.chords && strongBeat && event.strength >= 2.5) {
       const other = chooseLane(
-        counts.map((count, candidate) => count + (candidate === lane ? 1000 : 0)),
+        counts,
         lane,
         nextRandom,
+        availableLanes.filter((candidate) => candidate !== lane),
       );
+      if (other === undefined) continue;
       counts[other]! += 1;
-      notes.push({ time: round(event.time), lane: other, type: 'tap' });
+      notes.push({ time: noteTime, lane: other, type: 'tap' });
     }
   }
   notes.sort((left, right) => left.time - right.time || left.lane - right.lane);

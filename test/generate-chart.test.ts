@@ -90,3 +90,20 @@ test('normal and hard charts contain tap, hold, and directional flick notes', ()
     }
   }
 });
+
+test('notes do not overlap an active hold on the same lane', () => {
+  for (const difficulty of ['normal', 'hard'] as const) {
+    const generated = chart(difficulty);
+    const holds = generated.notes.filter((note) => note.type === 'hold');
+    assert(holds.length > 0);
+    for (const hold of holds) {
+      const holdEnd = hold.time + hold.duration;
+      assert.equal(generated.notes.some((note) => (
+        note !== hold
+        && note.lane === hold.lane
+        && note.time > hold.time
+        && note.time < holdEnd
+      )), false, `lane ${hold.lane} has a note during hold ${hold.time}-${holdEnd}`);
+    }
+  }
+});
