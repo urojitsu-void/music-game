@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { access } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+
+import { processSupervisor, type ProcessSupervisor } from '../platform/process.ts';
 
 export const ANALYSIS_SAMPLE_RATE = 11025;
 const FFT_SIZE = 1024;
@@ -44,7 +45,11 @@ export interface GridEvent extends AnalysisPeak {
 }
 
 export async function decodeAudioToMono(
-  path: string, options: { readonly ffmpegPath?: string } = {},
+  path: string,
+  options: {
+    readonly ffmpegPath?: string;
+    readonly supervisor?: Pick<ProcessSupervisor, 'spawn'>;
+  } = {},
 ): Promise<Float32Array> {
   await access(path);
   const ffmpegPath = options.ffmpegPath ?? 'ffmpeg';
@@ -53,12 +58,13 @@ export async function decodeAudioToMono(
     '-map', '0:a:0', '-vn', '-ac', '1', '-ar', String(ANALYSIS_SAMPLE_RATE),
     '-c:a', 'pcm_f32le', '-f', 'f32le', 'pipe:1',
   ];
-  const child = spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = (options.supervisor ?? processSupervisor)
+    .spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
   const chunks: Buffer[] = [];
   let stderr = '';
-  child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (chunk: string) => { stderr += chunk; });
+  child.stdout!.on('data', (chunk: Buffer) => chunks.push(chunk));
+  child.stderr!.setEncoding('utf8');
+  child.stderr!.on('data', (chunk: string) => { stderr += chunk; });
   const code = await new Promise<number | null>((resolve, reject) => {
     child.once('error', reject);
     child.once('close', resolve);

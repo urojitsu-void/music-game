@@ -1,6 +1,8 @@
 import { rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+import { temporarySiblingPath } from '../platform/temporary-path.ts';
+
 export type ChartDifficulty = 'easy' | 'normal' | 'hard';
 export const MIN_SAME_LANE_INTERVAL_SECONDS = 0.2;
 
@@ -152,7 +154,7 @@ export function validateChart(value: unknown): Chart {
 export async function writeChartAtomic(chart: unknown, outputPath: string): Promise<string> {
   const validated = validateChart(chart);
   const absolutePath = resolve(outputPath);
-  const temporaryPath = `${absolutePath}.tmp`;
+  const temporaryPath = temporarySiblingPath(absolutePath);
   await writeFile(temporaryPath, `${JSON.stringify(validated, null, 2)}\n`, 'utf8');
   await rename(temporaryPath, absolutePath);
   return absolutePath;

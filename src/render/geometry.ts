@@ -37,6 +37,10 @@ function mix(start: number, end: number, progress: number): number {
   return start + (end - start) * progress;
 }
 
+export function perspectiveProgress(progress: number): number {
+  return 0.65 * progress + 0.35 * progress ** 3;
+}
+
 export function lanePoint(
   layout: PixelLayout, laneBoundary: number, progress: number,
 ): { readonly x: number; readonly y: number } {
@@ -54,8 +58,9 @@ export function projectNote(
   layout: PixelLayout, lane: number, progress: number,
 ): ProjectedNote {
   const clamped = Math.max(0, Math.min(1, progress));
-  const point = lanePoint(layout, lane + 0.5, clamped);
+  const eased = perspectiveProgress(clamped);
+  const point = lanePoint(layout, lane + 0.5, eased);
   const topRadius = Math.max(4, layout.canvasWidth * 0.006);
   const judgmentRadius = Math.max(10, layout.canvasWidth * 0.014);
-  return { ...point, radius: mix(topRadius, judgmentRadius, clamped) };
+  return { ...point, radius: mix(topRadius, judgmentRadius, eased) };
 }

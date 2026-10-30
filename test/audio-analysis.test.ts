@@ -10,6 +10,7 @@ import {
   estimateTempo,
   hashDecodedAudio,
 } from '../src/chart/audio-analysis.ts';
+import { ProcessSupervisor } from '../src/platform/process.ts';
 
 const SAMPLE_RATE = 11025;
 const DURATION = 36;
@@ -95,7 +96,16 @@ test('decodeAudioToMono decodes canonical samples and hashDecodedAudio is conten
   await writeFile(firstPath, pcm16Wav(first));
   await writeFile(secondPath, pcm16Wav(second));
 
-  const decoded = await decodeAudioToMono(firstPath, { ffmpegPath: 'ffmpeg' });
+  const delegate = new ProcessSupervisor();
+  let managedSpawnCount = 0;
+  const supervisor = {
+    spawn(command: string, args: readonly string[], options: Parameters<ProcessSupervisor['spawn']>[2]) {
+      managedSpawnCount += 1;
+      return delegate.spawn(command, args, options);
+    },
+  };
+  const decoded = await decodeAudioToMono(firstPath, { ffmpegPath: 'ffmpeg', supervisor });
+  assert.equal(managedSpawnCount, 1);
   assert.equal(decoded.length, first.length);
   assert(Math.abs(decoded.length / SAMPLE_RATE - 2) <= 1 / SAMPLE_RATE);
   assert(Math.abs(decoded[100]! - 0.5) <= 1 / 32768);

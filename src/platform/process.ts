@@ -40,6 +40,51 @@ interface SpawnProcessResult<Child extends ChildProcess = ChildProcess> {
 
 const STDERR_LIMIT = 64 * 1024;
 
+export class ProcessSupervisor {
+  readonly #children = new Set<ChildProcess>();
+  #shuttingDown = false;
+  #shutdownPromise: Promise<void> | undefined;
+
+  get activeCount(): number { return this.#children.size; }
+
+  spawn(command: string, args: readonly string[] = [], options: SpawnOptions = {}): ChildProcess {
+    if (this.#shuttingDown) throw new Error('Process supervisor is shutting down');
+    const child = spawn(command, args, options);
+    this.#children.add(child);
+    child.once('close', () => { this.#children.delete(child); });
+    return child;
+  }
+
+  shutdown(options: { readonly graceMs?: number } = {}): Promise<void> {
+    if (this.#shutdownPromise) {
+      for (const child of this.#children) child.kill('SIGKILL');
+      return this.#shutdownPromise;
+    }
+    this.#shuttingDown = true;
+    const graceMs = options.graceMs ?? 3000;
+    const children = [...this.#children];
+    const allClosed = Promise.all(children.map((child) => (
+      this.#children.has(child)
+        ? new Promise<void>((resolve) => { child.once('close', () => resolve()); })
+        : Promise.resolve()
+    ))).then(() => undefined);
+    for (const child of children) child.kill('SIGTERM');
+    this.#shutdownPromise = (async () => {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([
+        allClosed,
+        new Promise<void>((resolve) => { timeout = setTimeout(resolve, graceMs); }),
+      ]);
+      if (timeout) clearTimeout(timeout);
+      for (const child of this.#children) child.kill('SIGKILL');
+      await allClosed;
+    })();
+    return this.#shutdownPromise;
+  }
+}
+
+export const processSupervisor = new ProcessSupervisor();
+
 function withProcessDiagnostics<T extends Error>(
   error: T, command: string, stderr: string,
 ): T & ProcessDiagnostics {
@@ -55,7 +100,7 @@ export function runProcess(
   command: string, args: readonly string[] = [], options: SpawnOptions = {},
 ): Promise<ProcessResult> {
   return new Promise<ProcessResult>((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = processSupervisor.spawn(command, args, {
       ...options,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -63,10 +108,10 @@ export function runProcess(
     let stdout = '';
     let stderr = '';
 
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => { stdout += chunk; });
-    child.stderr.on('data', (chunk: string) => { stderr += chunk; });
+    child.stdout!.setEncoding('utf8');
+    child.stderr!.setEncoding('utf8');
+    child.stdout!.on('data', (chunk: string) => { stdout += chunk; });
+    child.stderr!.on('data', (chunk: string) => { stderr += chunk; });
     child.once('error', (error) => {
       reject(withProcessDiagnostics(error, command, stderr));
     });
@@ -90,7 +135,7 @@ export function spawnProcess(
   command: string, args: readonly string[] = [], options: SpawnProcessOptions = {},
 ): SpawnProcessResult {
   const { stdin = 'pipe', ...spawnOptions } = options;
-  const child = spawn(command, args, {
+  const child = processSupervisor.spawn(command, args, {
     ...spawnOptions,
     shell: false,
     stdio: [stdin, 'inherit', 'pipe'],

@@ -1,9 +1,9 @@
 import { rename, rm } from 'node:fs/promises';
-import { basename, dirname, extname, join } from 'node:path';
 
 import { probeMedia, type ProbeMetadata } from '../media/probe.ts';
 import { runProcess, type ProcessResult } from '../platform/process.ts';
 import { writeStageErrorLog } from '../platform/stage-log.ts';
+import { temporarySiblingPath } from '../platform/temporary-path.ts';
 
 export interface FinalArgsOptions {
   readonly backgroundPath: string;
@@ -52,11 +52,6 @@ export interface FinalResult {
   readonly elapsedMs: number;
 }
 
-function temporaryOutputPath(outputPath: string): string {
-  const extension = extname(outputPath);
-  return join(dirname(outputPath), `${basename(outputPath, extension)}.tmp${extension}`);
-}
-
 function validateFinal(media: ProbeMetadata, background: ProbeMetadata): void {
   const video = media.video;
   const audio = media.audio;
@@ -96,7 +91,7 @@ export async function composeFinal(options: ComposeFinalOptions): Promise<FinalR
   const execute = options.runProcessFn ?? runProcess;
   const probe = options.probeMediaFn ?? probeMedia;
   const now = options.now ?? Date.now;
-  const temporaryPath = temporaryOutputPath(options.outputPath);
+  const temporaryPath = temporarySiblingPath(options.outputPath);
   const args = buildFinalArgs({
     backgroundPath: options.backgroundPath,
     overlayPath: options.overlayPath,

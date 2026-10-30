@@ -4,10 +4,39 @@ import type { Writable } from 'node:stream';
 
 import {
   commandExists,
+  ProcessSupervisor,
   ProcessExecutionError,
   runProcess,
   spawnProcess,
 } from '../src/platform/process.ts';
+
+test('ProcessSupervisor terminates active children and rejects new spawns during shutdown', async () => {
+  const supervisor = new ProcessSupervisor();
+  const child = supervisor.spawn(process.execPath, [
+    '-e', 'process.stderr.write("ready"); setInterval(() => {}, 1000)',
+  ], { stdio: ['ignore', 'ignore', 'pipe'] });
+  await new Promise((resolve) => child.stderr?.once('data', resolve));
+  assert.equal(supervisor.activeCount, 1);
+
+  await supervisor.shutdown({ graceMs: 100 });
+
+  assert.equal(supervisor.activeCount, 0);
+  assert.equal(child.signalCode, 'SIGTERM');
+  assert.throws(() => supervisor.spawn(process.execPath), /shutting down/);
+});
+
+test('ProcessSupervisor escalates children that ignore SIGTERM to SIGKILL', async () => {
+  const supervisor = new ProcessSupervisor();
+  const child = supervisor.spawn(process.execPath, [
+    '-e', 'process.on("SIGTERM", () => {}); process.stderr.write("ready"); setInterval(() => {}, 1000)',
+  ], { stdio: ['ignore', 'ignore', 'pipe'] });
+  await new Promise((resolve) => child.stderr?.once('data', resolve));
+
+  await supervisor.shutdown({ graceMs: 20 });
+
+  assert.equal(child.signalCode, 'SIGKILL');
+  assert.equal(supervisor.activeCount, 0);
+});
 
 // Compile-time check only: the default stdin is writable and completion has no result.
 function checkDefaultProcessTypes(): void {

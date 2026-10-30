@@ -1,5 +1,7 @@
 import { rename, writeFile } from 'node:fs/promises';
 
+import { temporarySiblingPath } from './temporary-path.ts';
+
 export interface StageErrorLogOptions {
   readonly logPath: string;
   readonly stage: string;
@@ -10,7 +12,7 @@ export interface StageErrorLogOptions {
 }
 
 export async function writeStageErrorLog(options: StageErrorLogOptions): Promise<void> {
-  const temporaryPath = `${options.logPath}.tmp`;
+  const temporaryPath = temporarySiblingPath(options.logPath);
   const content = `${JSON.stringify({
     stage: options.stage,
     command: options.command,

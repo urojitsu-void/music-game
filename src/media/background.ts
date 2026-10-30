@@ -1,13 +1,13 @@
 import {
   rename, rm,
 } from 'node:fs/promises';
-import { basename, dirname, extname, join } from 'node:path';
 
 import type { ResolvedInputs } from '../build/inputs.ts';
 import {
   runProcess, type ProcessResult,
 } from '../platform/process.ts';
 import { writeStageErrorLog } from '../platform/stage-log.ts';
+import { temporarySiblingPath } from '../platform/temporary-path.ts';
 import {
   probeMedia, type ProbeMetadata,
 } from './probe.ts';
@@ -107,12 +107,6 @@ export interface BackgroundResult {
   readonly media: ProbeMetadata;
 }
 
-function temporaryOutputPath(outputPath: string): string {
-  const extension = extname(outputPath);
-  const stem = basename(outputPath, extension);
-  return join(dirname(outputPath), `${stem}.tmp${extension}`);
-}
-
 function errorDetails(error: unknown): { exitCode: unknown; stderr: string } {
   if (error !== null && typeof error === 'object') {
     const value = error as Record<string, unknown>;
@@ -155,7 +149,7 @@ export async function createBackground(options: CreateBackgroundOptions): Promis
   const ffprobePath = options.ffprobePath ?? 'ffprobe';
   const execute = options.runProcessFn ?? runProcess;
   const probe = options.probeMediaFn ?? probeMedia;
-  const temporaryOutput = temporaryOutputPath(options.outputPath);
+  const temporaryOutput = temporarySiblingPath(options.outputPath);
 
   const sourcePath = options.inputs.mode === 'mp3'
     ? options.inputs.audioPath : options.inputs.videoPath;

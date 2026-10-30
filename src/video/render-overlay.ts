@@ -1,6 +1,5 @@
 import { once } from 'node:events';
 import { rename, rm } from 'node:fs/promises';
-import { basename, dirname, extname, join } from 'node:path';
 import type { Writable } from 'node:stream';
 
 import { createCanvas } from '@napi-rs/canvas';
@@ -10,6 +9,7 @@ import type { Chart } from '../chart/schema.ts';
 import { probeMedia, type ProbeMetadata } from '../media/probe.ts';
 import { spawnProcess } from '../platform/process.ts';
 import { writeStageErrorLog } from '../platform/stage-log.ts';
+import { temporarySiblingPath } from '../platform/temporary-path.ts';
 import { renderFrame, type CanvasLike } from '../render/canvas-renderer.ts';
 import { loadNodeRenderAssets } from '../render/node-render-assets.ts';
 
@@ -95,11 +95,6 @@ export interface RenderOverlayOptions {
   readonly probeMediaFn?: ProbeMediaFn;
 }
 
-function temporaryOutputPath(outputPath: string): string {
-  const extension = extname(outputPath);
-  return join(dirname(outputPath), `${basename(outputPath, extension)}.tmp${extension}`);
-}
-
 function diagnostics(error: unknown): { code: number | string | null; stderr: string } {
   if (error && typeof error === 'object') {
     const value = error as Record<string, unknown>;
@@ -145,7 +140,7 @@ export async function renderOverlay(options: RenderOverlayOptions): Promise<{
     chart: options.chart,
     layout: options.layout,
   });
-  const temporaryOutput = temporaryOutputPath(options.outputPath);
+  const temporaryOutput = temporarySiblingPath(options.outputPath);
   const args = buildOverlayArgs({
     width: source.displayWidth, height: source.displayHeight,
     durationSec: options.backgroundMedia.durationSec, outputPath: temporaryOutput,

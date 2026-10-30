@@ -38,6 +38,13 @@ test('runBuild connects every stage, writes expected artifacts, and reports timi
       }),
       preflight: async () => { calls.push('preflight'); },
       mkdir: async () => undefined,
+      acquireBuildLock: async () => {
+        calls.push('lock:acquire');
+        return {
+          token: 'test-build-token',
+          release: async () => { calls.push('lock:release'); },
+        };
+      },
       createBackground: async (options) => {
         calls.push(`background:${options.outputPath}`);
         return { path: options.outputPath, media };
@@ -61,10 +68,12 @@ test('runBuild connects every stage, writes expected artifacts, and reports timi
 
   assert.deepEqual(calls, [
     'preflight',
+    'lock:acquire',
     `background:${join(outDir, 'background.mp4')}`,
     'chart',
     `overlay:${join(outDir, 'overlay.mov')}`,
     `final:${join(outDir, 'final.mp4')}`,
+    'lock:release',
   ]);
   assert.equal(result.finalPath, join(outDir, 'final.mp4'));
   assert.deepEqual(result.elapsedMs, {
@@ -73,4 +82,29 @@ test('runBuild connects every stage, writes expected artifacts, and reports timi
   assert(lines.some((line) => line.includes('background') && line.includes('0.30秒')));
   assert(lines.some((line) => line.includes('合計') && line.includes('3.00秒')));
   assert(lines.some((line) => line.includes(join(outDir, 'final.mp4'))));
+});
+
+test('runBuild releases its build lock when a stage fails', async () => {
+  let released = false;
+  await assert.rejects(runBuild({
+    cwd: '/project', inputPath: 'song.mp3',
+    dependencies: {
+      loadConfig: async () => ({
+        difficulty: 'normal', seed: 12345, outDir: '/project/output', cover: null,
+        layout: { gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68 },
+      }),
+      resolveInputs: async () => ({
+        mode: 'mp3', audioPath: '/project/song.mp3',
+        lrcPath: '/project/song.lrc', coverPath: '/project/song.png',
+      }),
+      preflight: async () => undefined,
+      mkdir: async () => undefined,
+      acquireBuildLock: async () => ({
+        token: 'failing-build',
+        release: async () => { released = true; },
+      }),
+      createBackground: async () => { throw new Error('background failed'); },
+    },
+  }), /background failed/);
+  assert.equal(released, true);
 });

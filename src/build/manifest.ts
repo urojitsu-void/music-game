@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { readFile, rename, writeFile } from 'node:fs/promises';
 
+import { temporarySiblingPath } from '../platform/temporary-path.ts';
+
 export type StageName = 'background' | 'chart' | 'overlay' | 'final';
 export type JsonValue =
   | null | boolean | number | string
@@ -200,7 +202,7 @@ export async function recordStage(options: RecordStageOptions): Promise<BuildMan
     resolvedConfig,
     stages: { ...pruned.stages, [stage]: entry },
   };
-  const temporaryPath = `${manifestPath}.tmp`;
+  const temporaryPath = temporarySiblingPath(manifestPath);
   await writeFile(temporaryPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   await rename(temporaryPath, manifestPath);
   return manifest;
