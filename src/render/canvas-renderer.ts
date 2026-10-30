@@ -226,6 +226,15 @@ function drawAsset(context: ContextLike, asset: RasterAsset, x: number, y: numbe
   context.drawImage(asset.image, x - width / 2, y - height / 2, width, height);
 }
 
+function drawNoteAsset(
+  context: ContextLike, asset: RasterAsset, x: number, y: number, width: number,
+): void {
+  context.save();
+  context.globalAlpha = 0.88;
+  drawAsset(context, asset, x, y, width);
+  context.restore();
+}
+
 function drawRotatedAsset(
   context: ContextLike, asset: RasterAsset, x: number, y: number, width: number, angle: number,
 ): void {
@@ -250,17 +259,17 @@ function drawNote(
     context.lineTo(point.x, point.y);
     context.stroke();
     if (assets) {
-      drawAsset(context, assets.hold, tail.x, tail.y, tail.radius * 4.2);
-      drawAsset(context, assets.hold, point.x, point.y, point.radius * 4.2);
+      drawNoteAsset(context, assets.hold, tail.x, tail.y, tail.radius * 4.2);
+      drawNoteAsset(context, assets.hold, point.x, point.y, point.radius * 4.2);
     } else {
       drawDisc(context, tail, theme.holdColor, theme);
       drawDisc(context, point, theme.holdColor, theme);
     }
   } else if (note.type === 'flick') {
-    if (assets) drawAsset(context, assets.flick[note.direction], point.x, point.y, point.radius * 4.4);
+    if (assets) drawNoteAsset(context, assets.flick[note.direction], point.x, point.y, point.radius * 4.4);
     else drawFlick(context, point, note.direction, theme);
   } else {
-    if (assets) drawAsset(context, assets.tap, point.x, point.y, point.radius * 4.2);
+    if (assets) drawNoteAsset(context, assets.tap, point.x, point.y, point.radius * 4.2);
     else drawDisc(context, point, theme.noteColor, theme);
   }
 }
