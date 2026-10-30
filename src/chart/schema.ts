@@ -2,6 +2,7 @@ import { rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 export type ChartDifficulty = 'easy' | 'normal' | 'hard';
+export const MIN_SAME_LANE_INTERVAL_SECONDS = 0.2;
 
 interface ChartNoteBase {
   readonly time: number;
@@ -79,6 +80,7 @@ export function validateChart(value: unknown): Chart {
 
   const notes: ChartNote[] = [];
   const holdEnds = [0, 0, 0, 0];
+  const previousLaneTimes = [-Infinity, -Infinity, -Infinity, -Infinity];
   let previous: ChartNote | undefined;
   for (let index = 0; index < input.notes.length; index += 1) {
     const path = `chart.notes[${index}]`;
@@ -118,7 +120,12 @@ export function validateChart(value: unknown): Chart {
     if (parsed.time < holdEnds[parsed.lane]!) {
       throw new Error(`${path} overlaps an active hold on lane ${parsed.lane}`);
     }
+    if (parsed.time - previousLaneTimes[parsed.lane]!
+      < MIN_SAME_LANE_INTERVAL_SECONDS - Number.EPSILON) {
+      throw new Error(`${path} must be at least 200 milliseconds after the previous lane note`);
+    }
     if (parsed.type === 'hold') holdEnds[parsed.lane] = parsed.time + parsed.duration;
+    previousLaneTimes[parsed.lane] = parsed.time;
     notes.push(parsed);
     previous = parsed;
   }

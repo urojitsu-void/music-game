@@ -107,3 +107,23 @@ test('notes do not overlap an active hold on the same lane', () => {
     }
   }
 });
+
+test('same-lane notes are separated by at least 200 milliseconds', () => {
+  const { analysis, tempo } = fixture();
+  const generated = generateChart({
+    analysis,
+    tempo: { ...tempo, bpm: 240 },
+    audioName: 'song.mp3',
+    difficulty: 'hard',
+    seed: 12345,
+  });
+  for (let lane = 0; lane < 4; lane += 1) {
+    const laneNotes = generated.notes.filter((note) => note.lane === lane);
+    for (let index = 1; index < laneNotes.length; index += 1) {
+      assert(
+        laneNotes[index]!.time - laneNotes[index - 1]!.time >= 0.2,
+        `lane ${lane} has notes closer than 200ms`,
+      );
+    }
+  }
+});

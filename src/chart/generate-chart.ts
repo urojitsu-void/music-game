@@ -2,7 +2,8 @@ import {
   createGridEvents, type AudioAnalysis, type TempoEstimate,
 } from './audio-analysis.ts';
 import {
-  validateChart, type Chart, type ChartDifficulty, type ChartNote,
+  MIN_SAME_LANE_INTERVAL_SECONDS, validateChart,
+  type Chart, type ChartDifficulty, type ChartNote,
 } from './schema.ts';
 
 interface DifficultyConfig {
@@ -61,16 +62,16 @@ export function generateChart(options: GenerateChartOptions): Chart {
     .filter((_, index) => index % config.eventStep === 0);
   const nextRandom = random(seed);
   const counts = Array.from({ length: lanes }, () => 0);
-  const holdEnds = Array.from({ length: lanes }, () => 0);
+  const laneAvailableAt = Array.from({ length: lanes }, () => 0);
   const notes: ChartNote[] = [];
   let previousLane = -1;
 
   const beatDuration = 60 / options.tempo.bpm;
   for (const event of events) {
     const noteTime = round(event.time);
-    const availableLanes = holdEnds
-      .map((holdEnd, lane) => ({ holdEnd, lane }))
-      .filter(({ holdEnd }) => noteTime >= holdEnd)
+    const availableLanes = laneAvailableAt
+      .map((availableAt, lane) => ({ availableAt, lane }))
+      .filter(({ availableAt }) => noteTime >= availableAt - Number.EPSILON)
       .map(({ lane }) => lane);
     const lane = chooseLane(counts, previousLane, nextRandom, availableLanes);
     if (lane === undefined) continue;
@@ -84,7 +85,10 @@ export function generateChart(options: GenerateChartOptions): Chart {
       && event.index % (config.subdivision * 4) === 0 && holdDuration >= beatDuration * 0.75) {
       const duration = round(holdDuration);
       notes.push({ time: noteTime, lane, type: 'hold', duration });
-      holdEnds[lane] = noteTime + duration;
+      laneAvailableAt[lane] = Math.max(
+        noteTime + MIN_SAME_LANE_INTERVAL_SECONDS,
+        noteTime + duration,
+      );
     } else if (config.specialNotes && event.band === 2) {
       const directions = ['left', 'up', 'right', 'down'] as const;
       notes.push({
@@ -94,6 +98,9 @@ export function generateChart(options: GenerateChartOptions): Chart {
     } else {
       notes.push({ time: noteTime, lane, type: 'tap' });
     }
+    laneAvailableAt[lane] = Math.max(
+      laneAvailableAt[lane]!, noteTime + MIN_SAME_LANE_INTERVAL_SECONDS,
+    );
     previousLane = lane;
 
     if (config.chords && strongBeat && event.strength >= 2.5) {
@@ -106,6 +113,7 @@ export function generateChart(options: GenerateChartOptions): Chart {
       if (other === undefined) continue;
       counts[other]! += 1;
       notes.push({ time: noteTime, lane: other, type: 'tap' });
+      laneAvailableAt[other] = noteTime + MIN_SAME_LANE_INTERVAL_SECONDS;
     }
   }
   notes.sort((left, right) => left.time - right.time || left.lane - right.lane);
