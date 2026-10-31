@@ -88,11 +88,15 @@ export function deriveFrameState(
   const notes: FrameNote[] = [];
   const hits: HitState[] = [];
   let combo = 0;
+  const judgmentCount = chart.notes.reduce(
+    (count, note) => count + (note.type === 'hold' ? 2 : 1), 0,
+  );
   for (const note of chart.notes) {
     if (note.time <= timeSeconds) combo += 1;
     const appearance = note.time - travelSec;
+    const endTime = note.type === 'hold' ? note.time + note.duration : note.time;
     if (note.type === 'hold') {
-      const endTime = note.time + note.duration;
+      if (endTime <= timeSeconds) combo += 1;
       if (timeSeconds >= appearance && timeSeconds < endTime) {
         notes.push({
           ...note,
@@ -107,18 +111,26 @@ export function deriveFrameState(
     if (elapsed >= 0 && elapsed <= hitEffectSec) {
       hits.push({ ...note, progress: elapsed / hitEffectSec });
     }
+    if (note.type === 'hold') {
+      const releaseElapsed = timeSeconds - endTime;
+      if (releaseElapsed >= 0 && releaseElapsed <= hitEffectSec) {
+        hits.push({ ...note, progress: releaseElapsed / hitEffectSec });
+      }
+    }
   }
   const hitPulse = hits.reduce((pulse, hit) => Math.max(pulse, 1 - hit.progress), 0);
   const finalHitTime = chart.notes.reduce((latest, note) => Math.max(
     latest,
     note.type === 'hold' ? note.time + note.duration : note.time,
   ), Number.NEGATIVE_INFINITY);
-  const fullComboElapsed = Number.isFinite(finalHitTime) ? timeSeconds - finalHitTime : -1;
+  const rawFullComboElapsed = Number.isFinite(finalHitTime)
+    ? timeSeconds - finalHitTime - hitEffectSec : -1;
+  const fullComboElapsed = Math.abs(rawFullComboElapsed) < 1e-9 ? 0 : rawFullComboElapsed;
   const fullComboProgress = fullComboElapsed >= 0 && fullComboElapsed <= 2.5
     ? fullComboElapsed / 2.5 : null;
   return {
     notes, hits, combo,
-    gauge: chart.notes.length === 0 ? 0 : combo / chart.notes.length,
+    gauge: judgmentCount === 0 ? 0 : combo / judgmentCount,
     hitPulse,
     fullComboProgress,
   };

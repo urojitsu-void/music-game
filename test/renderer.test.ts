@@ -26,11 +26,11 @@ test('deriveFrameState includes travel, independent hits, bursts, and combo', ()
 
   const hit = deriveFrameState(chart(), 3.06);
   assert.equal(hit.notes.length, 0);
-  assert.deepEqual(hit.hits.map((note) => note.lane), [1, 3]);
-  assert.equal(hit.combo, 3);
+  assert.deepEqual(hit.hits.map((note) => note.lane), [0, 1, 3]);
+  assert.equal(hit.combo, 4);
   assert.equal(hit.gauge, 1);
   assert(hit.hitPulse > 0);
-  assert(hit.fullComboProgress !== null);
+  assert.equal(hit.fullComboProgress, null);
   assert.deepEqual(hit, deriveFrameState(chart(), 3.06));
 
   const expired = deriveFrameState(chart(), 3.221);
@@ -48,7 +48,12 @@ test('full combo waits for the final hold to finish', () => {
     notes: [{ time: 3, lane: 1, type: 'hold', duration: 1 }],
   };
   assert.equal(deriveFrameState(held, 3.5).fullComboProgress, null);
-  assert.equal(deriveFrameState(held, 4).fullComboProgress, 0);
+  const release = deriveFrameState(held, 4.06);
+  assert.equal(release.combo, 2);
+  assert.equal(release.gauge, 1);
+  assert.deepEqual(release.hits.map((hit) => hit.lane), [1]);
+  assert.equal(release.fullComboProgress, null);
+  assert.equal(deriveFrameState(held, 4.22).fullComboProgress, 0);
 });
 
 test('combo number palette changes at score thresholds', () => {
