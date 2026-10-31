@@ -108,7 +108,7 @@ test('notes do not overlap an active hold on the same lane', () => {
   }
 });
 
-test('same-lane notes are separated by at least 200 milliseconds', () => {
+test('same-lane notes are separated by at least 250 milliseconds', () => {
   const { analysis, tempo } = fixture();
   const generated = generateChart({
     analysis,
@@ -121,9 +121,26 @@ test('same-lane notes are separated by at least 200 milliseconds', () => {
     const laneNotes = generated.notes.filter((note) => note.lane === lane);
     for (let index = 1; index < laneNotes.length; index += 1) {
       assert(
-        laneNotes[index]!.time - laneNotes[index - 1]!.time >= 0.2,
-        `lane ${lane} has notes closer than 200ms`,
+        laneNotes[index]!.time - laneNotes[index - 1]!.time >= 0.25,
+        `lane ${lane} has notes closer than 250ms`,
       );
+    }
+  }
+});
+
+test('same-lane notes start at least 250 milliseconds after a hold ends', () => {
+  for (const difficulty of ['normal', 'hard'] as const) {
+    const generated = chart(difficulty);
+    for (const hold of generated.notes.filter((note) => note.type === 'hold')) {
+      const next = generated.notes.find((note) => (
+        note.lane === hold.lane && note.time > hold.time
+      ));
+      if (next) {
+        assert(
+          next.time - (hold.time + hold.duration) >= 0.25,
+          `lane ${hold.lane} resumes less than 250ms after hold ending at ${hold.time + hold.duration}`,
+        );
+      }
     }
   }
 });

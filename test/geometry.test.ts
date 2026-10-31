@@ -70,3 +70,14 @@ test('late notes remain separated by more than 2.1 combined radii', () => {
     );
   }
 });
+
+test('250 millisecond note spacing prevents asset overlap across the full travel path', () => {
+  const layout = resolveLayout(normalized, 1280, 720);
+  const progressGap = 0.25 / 2;
+  for (let frontProgress = progressGap; frontProgress <= 1; frontProgress += 0.001) {
+    const front = projectNote(layout, 2, frontProgress);
+    const back = projectNote(layout, 2, frontProgress - progressGap);
+    const centerDistance = Math.hypot(front.x - back.x, front.y - back.y);
+    assert(centerDistance > 2.1 * (front.radius + back.radius));
+  }
+});

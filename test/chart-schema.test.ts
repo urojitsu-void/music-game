@@ -42,14 +42,24 @@ test('validateChart rejects a note during an active hold on the same lane', () =
   }), /chart\.notes\[1\].*active hold/);
 });
 
-test('validateChart rejects same-lane notes closer than 200 milliseconds', () => {
+test('validateChart rejects same-lane notes closer than 250 milliseconds', () => {
   assert.throws(() => validateChart({
     ...validChart(),
     notes: [
       { time: 1, lane: 0, type: 'tap' },
-      { time: 1.199, lane: 0, type: 'tap' },
+      { time: 1.249, lane: 0, type: 'tap' },
     ],
-  }), /chart\.notes\[1\].*200 milliseconds/);
+  }), /chart\.notes\[1\].*250 milliseconds/);
+});
+
+test('validateChart requires 250 milliseconds after a hold ends on the same lane', () => {
+  assert.throws(() => validateChart({
+    ...validChart(),
+    notes: [
+      { time: 1, lane: 0, type: 'hold', duration: 1 },
+      { time: 2.249, lane: 0, type: 'flick', direction: 'up' },
+    ],
+  }), /chart\.notes\[1\].*250 milliseconds.*hold/);
 });
 
 for (const [name, mutate, path] of [

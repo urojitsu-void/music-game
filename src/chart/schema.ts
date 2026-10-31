@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { temporarySiblingPath } from '../platform/temporary-path.ts';
 
 export type ChartDifficulty = 'easy' | 'normal' | 'hard';
-export const MIN_SAME_LANE_INTERVAL_SECONDS = 0.2;
+export const MIN_SAME_LANE_INTERVAL_SECONDS = 0.25;
 
 interface ChartNoteBase {
   readonly time: number;
@@ -81,7 +81,7 @@ export function validateChart(value: unknown): Chart {
   if (!Array.isArray(input.notes)) throw new TypeError('chart.notes must be an array');
 
   const notes: ChartNote[] = [];
-  const holdEnds = [0, 0, 0, 0];
+  const holdEnds = [-Infinity, -Infinity, -Infinity, -Infinity];
   const previousLaneTimes = [-Infinity, -Infinity, -Infinity, -Infinity];
   let previous: ChartNote | undefined;
   for (let index = 0; index < input.notes.length; index += 1) {
@@ -122,9 +122,13 @@ export function validateChart(value: unknown): Chart {
     if (parsed.time < holdEnds[parsed.lane]!) {
       throw new Error(`${path} overlaps an active hold on lane ${parsed.lane}`);
     }
+    if (parsed.time - holdEnds[parsed.lane]!
+      < MIN_SAME_LANE_INTERVAL_SECONDS - Number.EPSILON) {
+      throw new Error(`${path} must be at least 250 milliseconds after the hold ends`);
+    }
     if (parsed.time - previousLaneTimes[parsed.lane]!
       < MIN_SAME_LANE_INTERVAL_SECONDS - Number.EPSILON) {
-      throw new Error(`${path} must be at least 200 milliseconds after the previous lane note`);
+      throw new Error(`${path} must be at least 250 milliseconds after the previous lane note`);
     }
     if (parsed.type === 'hold') holdEnds[parsed.lane] = parsed.time + parsed.duration;
     previousLaneTimes[parsed.lane] = parsed.time;

@@ -87,7 +87,7 @@ export function generateChart(options: GenerateChartOptions): Chart {
       notes.push({ time: noteTime, lane, type: 'hold', duration });
       laneAvailableAt[lane] = Math.max(
         noteTime + MIN_SAME_LANE_INTERVAL_SECONDS,
-        noteTime + duration,
+        noteTime + duration + MIN_SAME_LANE_INTERVAL_SECONDS,
       );
     } else if (config.specialNotes && event.band === 2) {
       const directions = ['left', 'up', 'right', 'down'] as const;
