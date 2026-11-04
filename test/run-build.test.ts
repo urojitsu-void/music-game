@@ -9,6 +9,8 @@ test('runBuild connects every stage, writes expected artifacts, and reports timi
   const outDir = join(root, 'output');
   const calls: string[] = [];
   const lines: string[] = [];
+  let resolvedSubtitle: string | null | undefined;
+  let requiresSubtitles: boolean | undefined;
   const times = [0, 100, 400, 400, 900, 900, 1700, 1700, 2900, 3000];
   const media = {
     durationSec: 10,
@@ -25,18 +27,24 @@ test('runBuild connects every stage, writes expected artifacts, and reports timi
   const chart = { duration: 10 } as never;
 
   const result = await runBuild({
-    cwd: root, inputPath: 'song.mp3', now: () => times.shift()!,
+    cwd: root, inputPath: 'song.mp3', subtitle: null, now: () => times.shift()!,
     log: (line) => lines.push(line),
     dependencies: {
       loadConfig: async () => ({
         difficulty: 'normal', seed: 12345, outDir, cover: null,
         layout: { gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68 },
       }),
-      resolveInputs: async () => ({
-        mode: 'mp3', audioPath: join(root, 'song.mp3'),
-        lrcPath: join(root, 'song.lrc'), coverPath: join(root, 'song.png'),
-      }),
-      preflight: async () => { calls.push('preflight'); },
+      resolveInputs: async (options) => {
+        resolvedSubtitle = options.subtitle;
+        return {
+          mode: 'mp3', audioPath: join(root, 'song.mp3'),
+          subtitlePath: null, coverPath: join(root, 'song.png'),
+        };
+      },
+      preflight: async (options) => {
+        requiresSubtitles = options.requiresSubtitles;
+        calls.push('preflight');
+      },
       mkdir: async () => undefined,
       acquireBuildLock: async () => {
         calls.push('lock:acquire');
@@ -76,6 +84,8 @@ test('runBuild connects every stage, writes expected artifacts, and reports timi
     'lock:release',
   ]);
   assert.equal(result.finalPath, join(outDir, 'final.mp4'));
+  assert.equal(resolvedSubtitle, null);
+  assert.equal(requiresSubtitles, false);
   assert.deepEqual(result.elapsedMs, {
     background: 300, chart: 500, overlay: 800, final: 1200, total: 3000,
   });
@@ -95,7 +105,7 @@ test('runBuild releases its build lock when a stage fails', async () => {
       }),
       resolveInputs: async () => ({
         mode: 'mp3', audioPath: '/project/song.mp3',
-        lrcPath: '/project/song.lrc', coverPath: '/project/song.png',
+        subtitlePath: '/project/song.lrc', coverPath: '/project/song.png',
       }),
       preflight: async () => undefined,
       mkdir: async () => undefined,

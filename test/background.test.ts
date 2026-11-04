@@ -30,6 +30,16 @@ test('buildMp3BackgroundArgs preserves the reference spectrum composition', () =
   }
 });
 
+test('buildMp3BackgroundArgs omits the subtitle filter when disabled', () => {
+  const args = buildMp3BackgroundArgs({
+    coverPath: '/media/cover.png', audioPath: '/media/song.mp3',
+    subtitlePath: null, outputPath: '/out/background.tmp.mp4',
+  });
+  const graph = args[args.indexOf('-filter_complex') + 1]!;
+  assert.doesNotMatch(graph, /subtitles=/);
+  assert.match(graph, /\[o5\]\[c6\]overlay=1098:H-h,format=yuv420p\[v\]$/);
+});
+
 test('buildVideoBackgroundArgs normalizes the first selected streams', () => {
   const args = buildVideoBackgroundArgs({
     inputPath: '/media/input.mov', outputPath: '/out/background.tmp.mp4',
@@ -55,6 +65,27 @@ test('buildVideoBackgroundArgs normalizes the first selected streams', () => {
   assert(args.includes('libx264') && args.includes('aac'));
 });
 
+test('buildVideoBackgroundArgs burns an explicitly selected subtitle', () => {
+  const args = buildVideoBackgroundArgs({
+    inputPath: '/media/input.mp4', subtitlePath: '/media/lyrics.srt',
+    outputPath: '/out/background.tmp.mp4',
+    media: {
+      durationSec: 5,
+      video: {
+        index: 0, codec: 'h264', encodedWidth: 1280, encodedHeight: 720,
+        displayWidth: 1280, displayHeight: 720, rotationDeg: 0,
+        avgFps: 30, isVfr: false, startSec: 0, durationSec: 5,
+      },
+      audio: {
+        index: 1, codec: 'aac', sampleRate: 48000, channels: 2,
+        startSec: 0, durationSec: 5,
+      },
+    },
+  });
+  const graph = args[args.indexOf('-filter_complex') + 1]!;
+  assert.match(graph, /subtitles=filename='\/media\/lyrics\.srt'/);
+});
+
 test('createBackground passes LRC directly and writes a complete atomic error log', async () => {
   const root = await mkdtemp(join(tmpdir(), 'background-unit-'));
   const audioPath = join(root, 'song.mp3');
@@ -75,7 +106,7 @@ test('createBackground passes LRC directly and writes a complete atomic error lo
   const failure = new ProcessExecutionError('ffmpeg-custom', 9, 'complete stderr');
 
   await assert.rejects(createBackground({
-    inputs: { mode: 'mp3', audioPath, lrcPath, coverPath },
+    inputs: { mode: 'mp3', audioPath, subtitlePath: lrcPath, coverPath },
     outputPath, logPath,
     ffmpegPath: 'ffmpeg-custom', ffprobePath: 'ffprobe-custom',
     probeMediaFn: async () => audioProbe,
@@ -126,7 +157,7 @@ test('createBackground ignores embedded MP3 cover dimensions when validating out
   const result = await createBackground({
     inputs: {
       mode: 'mp3', audioPath: join(root, 'song.mp3'),
-      lrcPath: join(root, 'song.lrc'), coverPath: join(root, 'song.png'),
+      subtitlePath: join(root, 'song.lrc'), coverPath: join(root, 'song.png'),
     },
     outputPath, logPath: join(root, 'build.log'),
     runProcessFn: async (_command, args) => {
@@ -151,7 +182,7 @@ test('createBackground normalizes video to 30fps and pads short audio', async (t
   await createVideoWithShortAudio(inputPath);
 
   const result = await createBackground({
-    inputs: { mode: 'video', videoPath: inputPath },
+    inputs: { mode: 'video', videoPath: inputPath, subtitlePath: null },
     outputPath,
     logPath: join(root, 'build.log'),
   });

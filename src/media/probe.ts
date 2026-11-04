@@ -171,6 +171,7 @@ type CommandExistsFn = (command: string) => Promise<boolean>;
 
 export interface PreflightOptions {
   readonly mode: PreflightMode;
+  readonly requiresSubtitles?: boolean;
   readonly ffmpeg?: string;
   readonly ffprobe?: string;
   readonly nodeVersion?: string;
@@ -187,6 +188,7 @@ export async function preflight(options: PreflightOptions): Promise<void> {
     commandExistsFn = commandExists,
     runProcessFn = runProcess,
   } = options;
+  const requiresSubtitles = options.requiresSubtitles ?? mode === 'mp3';
 
   const nodeMajor = Number.parseInt(nodeVersion.split('.')[0] ?? '', 10);
   if (!Number.isInteger(nodeMajor) || nodeMajor < 20) {
@@ -203,7 +205,7 @@ export async function preflight(options: PreflightOptions): Promise<void> {
   await runProcessFn(ffmpeg, ['-version']);
   await runProcessFn(ffprobe, ['-version']);
 
-  if (mode === 'mp3') {
+  if (requiresSubtitles) {
     const filters = await runProcessFn(ffmpeg, ['-filters']);
     if (!/\bsubtitles\b/.test(`${filters.stdout}\n${filters.stderr}`)) {
       throw new Error('FFmpeg subtitles filter is required; install an FFmpeg build with libass');

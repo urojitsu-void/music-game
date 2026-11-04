@@ -2,20 +2,22 @@ import { readdir, stat } from 'node:fs/promises';
 import { dirname, extname, join, parse, resolve } from 'node:path';
 
 export type ResolvedInputs = Readonly<
-  | { mode: 'mp3'; audioPath: string; lrcPath: string; coverPath: string }
-  | { mode: 'video'; videoPath: string }
+  | { mode: 'mp3'; audioPath: string; subtitlePath: string | null; coverPath: string }
+  | { mode: 'video'; videoPath: string; subtitlePath: string | null }
 >;
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg']);
+const SUBTITLE_EXTENSIONS = new Set(['.lrc', '.srt']);
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov']);
 
 async function requireFile(path: string, label: string): Promise<void> {
   if (!(await stat(path)).isFile()) throw new Error(`${label} must be a file: ${path}`);
 }
 
-export async function resolveInputs({ inputPath, cover = null }: {
+export async function resolveInputs({ inputPath, cover = null, subtitle }: {
   inputPath: string;
   cover?: string | null;
+  subtitle?: string | null;
 }): Promise<ResolvedInputs> {
   const absoluteInput = resolve(inputPath);
   const extension = extname(absoluteInput).toLowerCase();
@@ -23,16 +25,29 @@ export async function resolveInputs({ inputPath, cover = null }: {
     throw new Error(`Unsupported input extension: ${extension || '(none)'}`);
   }
   await requireFile(absoluteInput, 'Input');
+  let selectedSubtitle: string | null = null;
+  if (typeof subtitle === 'string') {
+    selectedSubtitle = resolve(subtitle);
+    if (!SUBTITLE_EXTENSIONS.has(extname(selectedSubtitle).toLowerCase())) {
+      throw new Error('Subtitle must be an LRC or SRT file');
+    }
+    await requireFile(selectedSubtitle, 'Subtitle');
+  }
   if (VIDEO_EXTENSIONS.has(extension)) {
-    return Object.freeze({ mode: 'video', videoPath: absoluteInput });
+    return Object.freeze({
+      mode: 'video', videoPath: absoluteInput, subtitlePath: selectedSubtitle,
+    });
   }
 
   const directory = dirname(absoluteInput);
   const basename = parse(absoluteInput).name;
   const entries = (await readdir(directory, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && parse(entry.name).name === basename);
-  const lyrics = entries.filter((entry) => extname(entry.name).toLowerCase() === '.lrc');
-  if (lyrics.length !== 1) throw new Error('MP3 requires exactly one matching LRC file');
+  if (subtitle === undefined) {
+    const lyrics = entries.filter((entry) => extname(entry.name).toLowerCase() === '.lrc');
+    if (lyrics.length !== 1) throw new Error('MP3 requires exactly one matching LRC file');
+    selectedSubtitle = join(directory, lyrics[0].name);
+  }
 
   let coverPath: string;
   if (cover !== null) {
@@ -49,6 +64,6 @@ export async function resolveInputs({ inputPath, cover = null }: {
   }
   return Object.freeze({
     mode: 'mp3', audioPath: absoluteInput,
-    lrcPath: join(directory, lyrics[0].name), coverPath,
+    subtitlePath: selectedSubtitle, coverPath,
   });
 }

@@ -34,17 +34,22 @@ const SPECTRUM_GRAPH = [
 export interface Mp3BackgroundArgsOptions {
   readonly coverPath: string;
   readonly audioPath: string;
-  readonly subtitlePath: string;
+  readonly subtitlePath: string | null;
   readonly outputPath: string;
 }
 
-export function buildMp3BackgroundArgs(options: Mp3BackgroundArgsOptions): string[] {
-  const subtitlePath = options.subtitlePath
+function subtitleFilter(path: string): string {
+  const subtitlePath = path
     .replaceAll('\\', '\\\\')
     .replaceAll(':', '\\:')
     .replaceAll("'", "\\'");
-  const subtitles = `subtitles=filename='${subtitlePath}':force_style='FontSize=22,Outline=2,Shadow=1,MarginV=45'`;
-  const graph = `${SPECTRUM_GRAPH};[spectrum]${subtitles}[v]`;
+  return `subtitles=filename='${subtitlePath}':force_style='FontSize=22,Outline=2,Shadow=1,MarginV=45'`;
+}
+
+export function buildMp3BackgroundArgs(options: Mp3BackgroundArgsOptions): string[] {
+  const graph = options.subtitlePath === null
+    ? SPECTRUM_GRAPH.replace(/\[spectrum\]$/, '[v]')
+    : `${SPECTRUM_GRAPH};[spectrum]${subtitleFilter(options.subtitlePath)}[v]`;
   return [
     '-hide_banner', '-stats', '-loglevel', 'warning',
     '-loop', '1', '-framerate', '30', '-i', options.coverPath,
@@ -59,6 +64,7 @@ export function buildMp3BackgroundArgs(options: Mp3BackgroundArgsOptions): strin
 
 export interface VideoBackgroundArgsOptions {
   readonly inputPath: string;
+  readonly subtitlePath?: string | null;
   readonly outputPath: string;
   readonly media: ProbeMetadata;
 }
@@ -71,9 +77,11 @@ export function buildVideoBackgroundArgs(options: VideoBackgroundArgsOptions): s
   const { video, audio } = options.media;
   if (!video || !audio) throw new Error('Video input must contain video and audio streams');
   const duration = seconds(video.durationSec);
+  const hasSubtitle = typeof options.subtitlePath === 'string';
   const graph = [
-    `[0:${video.index}]setpts=PTS-STARTPTS,fps=30,scale=${video.displayWidth}:${video.displayHeight}:flags=lanczos,setsar=1,format=yuv420p[v]`,
+    `[0:${video.index}]setpts=PTS-STARTPTS,fps=30,scale=${video.displayWidth}:${video.displayHeight}:flags=lanczos,setsar=1,format=yuv420p[${hasSubtitle ? 'video' : 'v'}]`,
     `[0:${audio.index}]asetpts=PTS-STARTPTS,apad,atrim=duration=${duration}[a]`,
+    ...(hasSubtitle ? [`[video]${subtitleFilter(options.subtitlePath!)}[v]`] : []),
   ].join(';');
   return [
     '-hide_banner', '-stats', '-loglevel', 'warning', '-i', options.inputPath,
@@ -160,12 +168,13 @@ export async function createBackground(options: CreateBackgroundOptions): Promis
     args = buildMp3BackgroundArgs({
       coverPath: options.inputs.coverPath,
       audioPath: options.inputs.audioPath,
-      subtitlePath: options.inputs.lrcPath,
+      subtitlePath: options.inputs.subtitlePath,
       outputPath: temporaryOutput,
     });
   } else {
     args = buildVideoBackgroundArgs({
       inputPath: options.inputs.videoPath,
+      subtitlePath: options.inputs.subtitlePath,
       outputPath: temporaryOutput,
       media: sourceMedia,
     });

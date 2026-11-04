@@ -39,8 +39,6 @@ export interface RenderAssets {
   readonly tap: RasterAsset;
   readonly hold: RasterAsset;
   readonly flick: Readonly<Record<'left' | 'right' | 'up' | 'down', RasterAsset>>;
-  readonly combo: RasterAsset;
-  readonly comboGlow: RasterAsset;
   readonly perfect: RasterAsset;
   readonly fullCombo: RasterAsset;
   readonly gauge: RasterAsset;
@@ -140,6 +138,7 @@ interface ContextLike {
   fillStyle: string | CanvasGradient | CanvasPattern;
   strokeStyle: string | CanvasGradient | CanvasPattern;
   lineWidth: number;
+  lineJoin: CanvasLineJoin;
   globalAlpha: number;
   globalCompositeOperation: GlobalCompositeOperation;
   font: string;
@@ -448,22 +447,27 @@ export function renderFrame(
     context.font = `900 ${Math.max(20, canvas.height * 0.045) * bounce}px sans-serif`;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    const comboText = assets ? `${state.combo}` : `${state.combo} COMBO`;
-    const numberX = assets ? layout.judgmentCenterX - canvas.width * 0.075 : layout.judgmentCenterX;
-    context.strokeText(comboText, numberX, comboY);
-    context.fillText(comboText, numberX, comboY);
+    const comboText = assets ? `COMBO ${state.combo}` : `${state.combo} COMBO`;
     if (assets) {
       context.save();
       context.globalCompositeOperation = 'lighter';
       context.globalAlpha = Math.min(
         1, 0.35 + glowIntensity(timeSeconds, 1.2) * 0.5 + state.hitPulse * 0.25,
       );
-      drawAsset(context, assets.comboGlow, layout.judgmentCenterX + canvas.width * 0.055,
-        comboY, canvas.width * 0.21 * bounce);
+      context.fillStyle = palette[1];
+      context.strokeStyle = palette[1];
+      context.lineWidth = Math.max(8, canvas.height * 0.014);
+      context.lineJoin = 'round';
+      context.strokeText(comboText, layout.judgmentCenterX, comboY);
+      context.fillText(comboText, layout.judgmentCenterX, comboY);
       context.restore();
-      drawAsset(context, assets.combo, layout.judgmentCenterX + canvas.width * 0.055,
-        comboY, canvas.width * 0.17 * bounce);
+      context.lineJoin = 'round';
     }
+    context.fillStyle = numberGradient;
+    context.strokeStyle = colors.textOutline;
+    context.lineWidth = Math.max(6, canvas.height * 0.011);
+    context.strokeText(comboText, layout.judgmentCenterX, comboY);
+    context.fillText(comboText, layout.judgmentCenterX, comboY);
   }
   if (state.fullComboProgress !== null) {
     const entrance = Math.min(1, state.fullComboProgress * 8);

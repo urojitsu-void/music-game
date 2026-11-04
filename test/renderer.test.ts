@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  comboNumberPalette, deriveFrameState, glowIntensity, renderFrame,
+  comboNumberPalette, deriveFrameState, glowIntensity, renderFrame, type RenderAssets,
 } from '../src/render/canvas-renderer.ts';
 import type { Chart } from '../src/chart/schema.ts';
 
@@ -71,17 +71,43 @@ test('glow intensity oscillates as a bounded sine wave', () => {
 });
 
 class RecordingContext {
-  readonly calls: Array<{ name: string; args: unknown[] }> = [];
+  readonly calls: Array<{
+    name: string;
+    args: unknown[];
+    fillStyle: string | CanvasGradient | CanvasPattern;
+    globalAlpha: number;
+    globalCompositeOperation: GlobalCompositeOperation;
+    lineJoin: CanvasLineJoin;
+  }> = [];
   fillStyle: string | CanvasGradient | CanvasPattern = '';
   strokeStyle: string | CanvasGradient | CanvasPattern = '';
   lineWidth = 1;
+  lineJoin: CanvasLineJoin = 'miter';
   globalAlpha = 1;
   globalCompositeOperation: GlobalCompositeOperation = 'source-over';
   font = '';
   textAlign: CanvasTextAlign = 'start';
   textBaseline: CanvasTextBaseline = 'alphabetic';
+  private readonly states: Array<{
+    fillStyle: string | CanvasGradient | CanvasPattern;
+    strokeStyle: string | CanvasGradient | CanvasPattern;
+    lineWidth: number;
+    lineJoin: CanvasLineJoin;
+    globalAlpha: number;
+    globalCompositeOperation: GlobalCompositeOperation;
+    font: string;
+    textAlign: CanvasTextAlign;
+    textBaseline: CanvasTextBaseline;
+  }> = [];
 
-  private call(name: string, ...args: unknown[]): void { this.calls.push({ name, args }); }
+  private call(name: string, ...args: unknown[]): void {
+    this.calls.push({
+      name, args, fillStyle: this.fillStyle,
+      globalAlpha: this.globalAlpha,
+      globalCompositeOperation: this.globalCompositeOperation,
+      lineJoin: this.lineJoin,
+    });
+  }
   clearRect(...args: number[]): void { this.call('clearRect', ...args); }
   beginPath(): void { this.call('beginPath'); }
   moveTo(...args: number[]): void { this.call('moveTo', ...args); }
@@ -103,8 +129,20 @@ class RecordingContext {
   drawImage(...args: unknown[]): void { this.call('drawImage', ...args); }
   translate(...args: number[]): void { this.call('translate', ...args); }
   rotate(...args: number[]): void { this.call('rotate', ...args); }
-  save(): void { this.call('save'); }
-  restore(): void { this.call('restore'); }
+  save(): void {
+    this.call('save');
+    this.states.push({
+      fillStyle: this.fillStyle, strokeStyle: this.strokeStyle,
+      lineWidth: this.lineWidth, lineJoin: this.lineJoin,
+      globalAlpha: this.globalAlpha, globalCompositeOperation: this.globalCompositeOperation,
+      font: this.font, textAlign: this.textAlign, textBaseline: this.textBaseline,
+    });
+  }
+  restore(): void {
+    this.call('restore');
+    const state = this.states.pop();
+    if (state) Object.assign(this, state);
+  }
 }
 
 test('renderFrame clears transparency and draws lines, circles, glow, and combo', () => {
@@ -117,20 +155,58 @@ test('renderFrame clears transparency and draws lines, circles, glow, and combo'
   const layout = { gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68 };
   renderFrame(canvas, chart(), 1, layout, null, { mode: 'autoplay' });
   renderFrame(canvas, chart(), 2.06, layout, null, { mode: 'autoplay' });
-  renderFrame(canvas, chart(), 3.06, layout, null, { mode: 'autoplay' });
+  renderFrame(canvas, chart(), 3.22, layout, null, { mode: 'autoplay' });
 
-  assert.deepEqual(context.calls[0], { name: 'clearRect', args: [0, 0, 1280, 720] });
+  assert.equal(context.calls[0]?.name, 'clearRect');
+  assert.deepEqual(context.calls[0]?.args, [0, 0, 1280, 720]);
   assert(context.calls.filter((call) => call.name === 'lineTo').length >= 6);
   assert(context.calls.some((call) => call.name === 'arc'));
   assert(context.calls.some((call) => call.name === 'createRadialGradient'));
-  assert(context.calls.some((call) => call.name === 'strokeText' && call.args[0] === '3 COMBO'));
-  assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === '3 COMBO'));
+  assert(context.calls.some((call) => call.name === 'strokeText' && call.args[0] === '4 COMBO'));
+  assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === '4 COMBO'));
   assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === 'PERFECT'));
   assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === 'FULL COMBO'));
   for (const rank of ['D', 'C', 'B', 'A', 'S']) {
     assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === rank));
   }
   assert(context.calls.filter((call) => call.name === 'fillRect').length >= 2);
+});
+
+test('asset combo text is combined at center and emits a matching glow', () => {
+  const context = new RecordingContext();
+  const canvas = {
+    width: 1280, height: 720,
+    getContext: (kind: string) => kind === '2d' ? context : null,
+  };
+  const comboChart: Chart = {
+    ...chart(),
+    notes: Array.from({ length: 50 }, (_, index) => ({
+      time: 2, lane: index % 4, type: 'tap' as const,
+    })),
+  };
+  const asset = { image: {}, width: 100, height: 50 };
+  const assets: RenderAssets = {
+    tap: asset, hold: asset,
+    flick: { left: asset, right: asset, up: asset, down: asset },
+    perfect: asset, fullCombo: asset,
+    gauge: asset, gaugeGlow: asset, hitRing: asset,
+  };
+
+  renderFrame(canvas, comboChart, 2.06,
+    { gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68 },
+    null, { mode: 'autoplay' }, assets);
+
+  const label = context.calls.find((call) => call.name === 'fillText'
+    && call.args[0] === 'COMBO 50' && call.globalCompositeOperation === 'source-over');
+  const glow = context.calls.find((call) => call.name === 'fillText'
+    && call.args[0] === 'COMBO 50' && call.globalCompositeOperation === 'lighter');
+  assert(label);
+  assert.equal(label.args[1], 640);
+  assert.equal(typeof label.fillStyle, 'object');
+  assert.equal(label?.lineJoin, 'round');
+  assert.equal(glow?.fillStyle, comboNumberPalette(50)[1]);
+  assert(glow && glow.globalAlpha > 0);
+  assert.equal(glow.lineJoin, 'round');
 });
 
 test('full combo hides the entire playfield but keeps gauge and combo UI', () => {
@@ -144,7 +220,7 @@ test('full combo hides the entire playfield but keeps gauge and combo UI', () =>
     null, { mode: 'autoplay' });
 
   assert.equal(context.calls.some((call) => call.name === 'moveTo'), false);
-  assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === '3 COMBO'));
+  assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === '4 COMBO'));
   assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === 'FULL COMBO'));
   assert(context.calls.some((call) => call.name === 'fillRect'));
 });

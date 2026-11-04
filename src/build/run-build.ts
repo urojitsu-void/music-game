@@ -56,6 +56,7 @@ export interface BuildResult {
 export interface RunBuildOptions {
   readonly cwd?: string;
   readonly inputPath: string;
+  readonly subtitle?: string | null;
   readonly now?: () => number;
   readonly log?: (line: string) => void;
   readonly dependencies?: Partial<BuildDependencies>;
@@ -77,9 +78,13 @@ export async function runBuild(options: RunBuildOptions): Promise<BuildResult> {
   const inputs = await dependencies.resolveInputs({
     inputPath: options.inputPath,
     cover: config.cover,
+    subtitle: options.subtitle,
   });
   await dependencies.preflight({
-    mode: inputs.mode, ffmpeg: ffmpegPath, ffprobe: ffprobePath,
+    mode: inputs.mode,
+    requiresSubtitles: inputs.subtitlePath !== null,
+    ffmpeg: ffmpegPath,
+    ffprobe: ffprobePath,
   });
   await dependencies.mkdir(config.outDir, { recursive: true });
   const buildLock = await dependencies.acquireBuildLock(config.outDir);

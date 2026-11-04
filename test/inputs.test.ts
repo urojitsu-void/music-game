@@ -22,6 +22,11 @@ function checkResolvedInputTypes(input: ResolvedInputs): string {
   return input.videoPath;
 }
 
+function checkResolvedInputReadonly(input: ResolvedInputs): void {
+  // @ts-expect-error Resolved input mode is readonly.
+  input.mode = 'video';
+}
+
 async function fixture(t: TestContext, names: readonly string[]) {
   const dir = await mkdtemp(join(tmpdir(), 'music-inputs-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -36,13 +41,12 @@ for (const imageExt of ['png', 'jpg', 'jpeg', 'PnG', 'JPG', 'JpEg']) {
     const actual = await resolveInputs({ inputPath: join(dir, `${base}.Mp3`) });
     assert.deepEqual(actual, {
       mode: 'mp3', audioPath: join(dir, `${base}.Mp3`),
-      lrcPath: join(dir, `${base}.LrC`), coverPath: join(dir, `${base}.${imageExt}`),
+      subtitlePath: join(dir, `${base}.LrC`), coverPath: join(dir, `${base}.${imageExt}`),
     });
     assert.equal(Object.getPrototypeOf(actual), Object.prototype);
     assert.equal(Object.isFrozen(actual), true);
     assert.throws(() => {
-      // @ts-expect-error Resolved input mode is readonly.
-      actual.mode = 'video';
+      (actual as { mode: string }).mode = 'video';
     }, TypeError);
   });
 }
@@ -53,7 +57,7 @@ test('resolves relative input and explicit cover from process.cwd()', async (t) 
     inputPath: relative(process.cwd(), join(dir, 'song.mp3')),
     cover: relative(process.cwd(), join(dir, 'chosen cover.PNG')),
   }), {
-    mode: 'mp3', audioPath: join(dir, 'song.mp3'), lrcPath: join(dir, 'song.lrc'),
+    mode: 'mp3', audioPath: join(dir, 'song.mp3'), subtitlePath: join(dir, 'song.lrc'),
     coverPath: join(dir, 'chosen cover.PNG'),
   });
 });
@@ -102,7 +106,7 @@ for (const ext of ['mp4', 'mov', 'MP4', 'MoV']) {
     const dir = await fixture(t, [`映像 sample.${ext}`, '映像 sample.lrc', '映像 sample.png', '映像 sample.jpg']);
     const inputPath = join(dir, `映像 sample.${ext}`);
     const actual = await resolveInputs({ inputPath, cover: join(dir, 'missing.gif') });
-    assert.deepEqual(actual, { mode: 'video', videoPath: inputPath });
+    assert.deepEqual(actual, { mode: 'video', videoPath: inputPath, subtitlePath: null });
     assert.equal(Object.isFrozen(actual), true);
   });
 }
@@ -110,8 +114,45 @@ for (const ext of ['mp4', 'mov', 'MP4', 'MoV']) {
 test('video does not require neighboring companions', async (t) => {
   const dir = await fixture(t, ['clip.mp4']);
   assert.deepEqual(await resolveInputs({ inputPath: join(dir, 'clip.mp4') }), {
-    mode: 'video', videoPath: join(dir, 'clip.mp4'),
+    mode: 'video', videoPath: join(dir, 'clip.mp4'), subtitlePath: null,
   });
+});
+
+test('MP3 can explicitly disable subtitles and does not require an LRC', async (t) => {
+  const dir = await fixture(t, ['song.mp3', 'song.png']);
+  assert.deepEqual(await resolveInputs({ inputPath: join(dir, 'song.mp3'), subtitle: null }), {
+    mode: 'mp3', audioPath: join(dir, 'song.mp3'), subtitlePath: null,
+    coverPath: join(dir, 'song.png'),
+  });
+});
+
+test('MP3 accepts an explicitly selected SRT subtitle', async (t) => {
+  const dir = await fixture(t, ['song.mp3', 'song.png', 'selected lyrics.srt']);
+  assert.deepEqual(await resolveInputs({
+    inputPath: join(dir, 'song.mp3'), subtitle: join(dir, 'selected lyrics.srt'),
+  }), {
+    mode: 'mp3', audioPath: join(dir, 'song.mp3'),
+    subtitlePath: join(dir, 'selected lyrics.srt'), coverPath: join(dir, 'song.png'),
+  });
+});
+
+test('video accepts an explicitly selected LRC subtitle', async (t) => {
+  const dir = await fixture(t, ['clip.mp4', 'selected.lrc']);
+  assert.deepEqual(await resolveInputs({
+    inputPath: join(dir, 'clip.mp4'), subtitle: join(dir, 'selected.lrc'),
+  }), {
+    mode: 'video', videoPath: join(dir, 'clip.mp4'), subtitlePath: join(dir, 'selected.lrc'),
+  });
+});
+
+test('explicit subtitle must be an existing LRC or SRT file', async (t) => {
+  const dir = await fixture(t, ['song.mp3', 'song.png', 'lyrics.txt']);
+  await assert.rejects(resolveInputs({
+    inputPath: join(dir, 'song.mp3'), subtitle: join(dir, 'lyrics.txt'),
+  }), /subtitle|LRC|SRT/i);
+  await assert.rejects(resolveInputs({
+    inputPath: join(dir, 'song.mp3'), subtitle: join(dir, 'missing.srt'),
+  }), /subtitle|file|ENOENT/i);
 });
 
 for (const name of ['song.wav', 'song.flac', 'clip.webm', 'song']) {

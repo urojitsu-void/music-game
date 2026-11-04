@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 
 import { runBuild } from './build/run-build.ts';
+import { parseBuildArgs } from './build/cli-options.ts';
 import { processSupervisor } from './platform/process.ts';
 import { installShutdownHandlers } from './platform/signals.ts';
 
 async function main(args: readonly string[]): Promise<void> {
-  const [command, inputPath, ...extra] = args;
-  if (command !== 'build' || !inputPath || extra.length > 0) {
-    throw new Error('Usage: tsx src/cli.ts build <audio.mp3|video.mp4|video.mov>');
-  }
-  await runBuild({ inputPath });
+  const options = parseBuildArgs(args);
+  await runBuild(options);
 }
 
 const uninstallShutdownHandlers = installShutdownHandlers(processSupervisor);

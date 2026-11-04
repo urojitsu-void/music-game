@@ -2,4 +2,4 @@ output/
 .worktrees/
 node_modules/
 .DS_Store
-
+docs

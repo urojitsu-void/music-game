@@ -86,34 +86,6 @@ function rainbowBarGlow(): Buffer {
   return canvas.toBuffer('image/png');
 }
 
-function comboAsset(): Buffer {
-  const canvas = createCanvas(460, 150);
-  const context = canvas.getContext('2d');
-  const gradient = context.createLinearGradient(0, 25, 0, 125);
-  gradient.addColorStop(0, '#ff6576');
-  gradient.addColorStop(0.42, '#ff0038');
-  gradient.addColorStop(1, '#a60024');
-  context.font = '900 98px "Avenir Next"';
-  context.textAlign = 'center'; context.textBaseline = 'middle';
-  context.strokeStyle = '#260009'; context.lineWidth = 8;
-  context.strokeText('COMBO', 230, 75);
-  context.fillStyle = gradient;
-  context.fillText('COMBO', 230, 75);
-  context.strokeStyle = 'rgba(255,190,200,0.72)'; context.lineWidth = 2;
-  context.strokeText('COMBO', 230, 75);
-  return canvas.toBuffer('image/png');
-}
-
-function comboGlow(): Buffer {
-  const canvas = createCanvas(520, 220);
-  const context = canvas.getContext('2d');
-  context.font = '900 92px "Avenir Next"';
-  context.textAlign = 'center'; context.textBaseline = 'middle';
-  context.fillStyle = '#ff002f'; context.shadowColor = '#ff002f'; context.shadowBlur = 38;
-  context.fillText('COMBO', 260, 110);
-  return canvas.toBuffer('image/png');
-}
-
 function hitRing(): Buffer {
   const canvas = createCanvas(512, 512);
   const context = canvas.getContext('2d');
@@ -137,8 +109,6 @@ await Promise.all([
   writeFile(join(OUTPUT, 'note-hold.png'), sphere(['#ffe0fb', '#ff3fcf', '#73005d'])),
   ...(['left', 'right', 'up', 'down'] as const).map((direction) =>
     writeFile(join(OUTPUT, `note-flick-${direction}.png`), sphere(['#fffbd0', '#ffc928', '#9d4800'], direction))),
-  writeFile(join(OUTPUT, 'combo.png'), comboAsset()),
-  writeFile(join(OUTPUT, 'combo-glow.png'), comboGlow()),
   writeFile(join(OUTPUT, 'perfect.png'), textAsset('PERFECT', ['#fff177', '#d06b00'], 560, 150)),
   writeFile(join(OUTPUT, 'full-combo.png'), textAsset('FULL COMBO', ['#fff177', '#e32572'], 900, 190)),
   writeFile(join(OUTPUT, 'rainbow-bar.png'), rainbowBar()),

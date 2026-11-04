@@ -143,11 +143,15 @@ test('preflight reports missing FFprobe', async () => {
   );
 });
 
-test('preflight requires subtitles filter only for MP3 mode', async () => {
+test('preflight requires the subtitles filter only when subtitles are selected', async () => {
   const deps = preflightDeps({ filters: 'scale overlay' });
   await assert.rejects(
-    preflight({ mode: 'mp3', nodeVersion: '20.0.0', ...deps }),
+    preflight({
+      mode: 'video', requiresSubtitles: true, nodeVersion: '20.0.0', ...deps,
+    }),
     /FFmpeg subtitles filter is required/,
   );
-  await preflight({ mode: 'video', nodeVersion: '20.0.0', ...deps });
+  await preflight({
+    mode: 'mp3', requiresSubtitles: false, nodeVersion: '20.0.0', ...deps,
+  });
 });
