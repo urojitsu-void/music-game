@@ -28,6 +28,7 @@ test('buildMp3BackgroundArgs preserves the reference spectrum composition', () =
   for (const expected of ['libx264', 'aac', '30', 'yuv420p', '+faststart', '-shortest']) {
     assert(args.includes(expected), `missing ${expected}`);
   }
+  assert.equal(args[args.indexOf('-preset') + 1], 'veryfast');
 });
 
 test('buildMp3BackgroundArgs omits the subtitle filter when disabled', () => {
@@ -63,6 +64,7 @@ test('buildVideoBackgroundArgs normalizes the first selected streams', () => {
   assert(args.includes('-fps_mode') && args.includes('cfr'));
   assert.deepEqual(args.slice(args.indexOf('-metadata:s:v:0'), args.indexOf('-metadata:s:v:0') + 2), ['-metadata:s:v:0', 'rotate=0']);
   assert(args.includes('libx264') && args.includes('aac'));
+  assert.equal(args[args.indexOf('-preset') + 1], 'veryfast');
 });
 
 test('buildVideoBackgroundArgs burns an explicitly selected subtitle', () => {

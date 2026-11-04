@@ -18,9 +18,9 @@ export function buildFinalArgs(options: FinalArgsOptions): string[] {
     '-i', options.backgroundPath, '-i', options.overlayPath,
     '-filter_complex', '[0:v:0][1:v:0]overlay=0:0:format=auto:shortest=1[v]',
     '-map', '[v]', '-map', '0:a:0',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
     '-fps_mode', 'cfr', '-r', '30', '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', '256k',
+    '-c:a', 'copy',
     '-movflags', '+faststart', '-t', String(options.durationSec),
     '-y', options.outputPath,
   ];

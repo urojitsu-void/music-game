@@ -56,7 +56,7 @@ export function buildMp3BackgroundArgs(options: Mp3BackgroundArgsOptions): strin
     '-i', options.audioPath,
     '-filter_complex', graph,
     '-map', '[v]', '-map', '1:a:0',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-r', '30',
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-r', '30',
     '-c:a', 'aac', '-b:a', '256k', '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart', '-shortest', '-y', options.outputPath,
   ];
@@ -86,7 +86,7 @@ export function buildVideoBackgroundArgs(options: VideoBackgroundArgsOptions): s
   return [
     '-hide_banner', '-stats', '-loglevel', 'warning', '-i', options.inputPath,
     '-filter_complex', graph, '-map', '[v]', '-map', '[a]',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
     '-fps_mode', 'cfr', '-r', '30', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '256k', '-metadata:s:v:0', 'rotate=0',
     '-movflags', '+faststart', '-t', duration, '-y', options.outputPath,

@@ -21,18 +21,19 @@ test('frame count and timestamps are exact at 30fps', () => {
   assert.equal(frameTime(149), 149 / 30);
 });
 
-test('buildOverlayArgs streams PNG into ProRes 4444', () => {
+test('buildOverlayArgs streams raw RGBA into ProRes 4444', () => {
   const args = buildOverlayArgs({
     width: 1280, height: 720, durationSec: 5,
     outputPath: '/out/gameplay-alpha.tmp.mov',
   });
   for (const expected of [
-    'image2pipe', 'png', '30', 'prores_ks', '4444', 'yuva444p10le', '5',
+    'rawvideo', 'rgba', '1280x720', '30', 'prores_ks', '4444', 'yuva444p10le', '5',
   ]) assert(args.includes(expected), `missing ${expected}`);
+  assert.equal(args.includes('png'), false);
   assert.equal(args.at(-1), '/out/gameplay-alpha.tmp.mov');
 });
 
-test('renderOverlay reuses the shared renderer at exact timestamps and streams PNG frames', async (t) => {
+test('renderOverlay reuses the shared renderer at exact timestamps and streams raw frames', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'render-overlay-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const renderTimes: number[] = [];

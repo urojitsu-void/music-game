@@ -39,9 +39,11 @@ test('buildFinalArgs overlays the game video and preserves background audio', ()
   assert.deepEqual(args.slice(args.indexOf('-map'), args.indexOf('-map') + 4), [
     '-map', '[v]', '-map', '0:a:0',
   ]);
-  for (const expected of ['libx264', 'aac', '30', 'yuv420p', '+faststart', '5']) {
+  for (const expected of ['libx264', '30', 'yuv420p', '+faststart', '5']) {
     assert(args.includes(expected), `missing ${expected}`);
   }
+  assert.equal(args[args.indexOf('-preset') + 1], 'veryfast');
+  assert.deepEqual(args.slice(args.indexOf('-c:a'), args.indexOf('-c:a') + 2), ['-c:a', 'copy']);
 });
 
 test('composeFinal reports the measured conversion time after validated output', async (t) => {

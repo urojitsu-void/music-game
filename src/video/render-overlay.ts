@@ -31,7 +31,9 @@ export function buildOverlayArgs(options: {
 }): string[] {
   return [
     '-hide_banner', '-loglevel', 'warning',
-    '-f', 'image2pipe', '-framerate', String(FPS), '-vcodec', 'png', '-i', 'pipe:0',
+    '-f', 'rawvideo', '-pixel_format', 'rgba',
+    '-video_size', `${options.width}x${options.height}`,
+    '-framerate', String(FPS), '-i', 'pipe:0',
     '-an', '-c:v', 'prores_ks', '-profile:v', '4444',
     '-pix_fmt', 'yuva444p10le', '-r', String(FPS),
     '-t', String(options.durationSec), '-s', `${options.width}x${options.height}`,
@@ -52,6 +54,7 @@ export interface FrameRendererOptions {
 
 export function createNodeFrameRenderer(options: FrameRendererOptions): FrameRenderer {
   const canvas = createCanvas(options.width, options.height);
+  const context = canvas.getContext('2d');
   const assets = loadNodeRenderAssets();
   return {
     async render(timeSeconds) {
@@ -64,7 +67,8 @@ export function createNodeFrameRenderer(options: FrameRendererOptions): FrameRen
         { mode: 'autoplay' },
         await assets,
       );
-      return canvas.toBuffer('image/png');
+      const pixels = context.getImageData(0, 0, options.width, options.height).data;
+      return Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength);
     },
   };
 }
