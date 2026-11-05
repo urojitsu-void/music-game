@@ -16,12 +16,17 @@ export interface PlayBundle {
 
 export async function bundlePlayApp(outputDirectory: string): Promise<PlayBundle> {
   await mkdir(outputDirectory, { recursive: true });
+  await mkdir(join(outputDirectory, 'assets'), { recursive: true });
   const htmlPath = join(outputDirectory, 'index.html');
   const scriptPath = join(outputDirectory, 'play.js');
   const cssPath = join(outputDirectory, 'play.css');
   await Promise.all([
     copyFile(join(SOURCE_DIRECTORY, 'index.html'), htmlPath),
     copyFile(join(SOURCE_DIRECTORY, 'play.css'), cssPath),
+    copyFile(
+      join(SOURCE_DIRECTORY, 'assets', 'song-select-background.png'),
+      join(outputDirectory, 'assets', 'song-select-background.png'),
+    ),
     cp(join(RENDER_DIRECTORY, 'assets'), join(outputDirectory, 'assets'), { recursive: true }),
     build({
       entryPoints: [join(SOURCE_DIRECTORY, 'browser-entry.tsx')],

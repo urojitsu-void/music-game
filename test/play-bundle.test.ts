@@ -27,7 +27,6 @@ test('play bundle emits React game HTML, JavaScript, CSS, and render assets', as
   assert.doesNotMatch(script, /\/api\/runtime/);
   assert.doesNotMatch(script, /\/api\/debug\/output/);
   assert.match(script, /loadReleaseCatalog/);
-  assert.match(script, /GitHub Releases/);
   assert.doesNotMatch(script, /type:\s*"file"/);
   assert.match(css, /touch-action:\s*none/);
   assert.equal(tapAsset.isFile(), true);

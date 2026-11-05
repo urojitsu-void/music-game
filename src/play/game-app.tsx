@@ -63,10 +63,16 @@ function SetupScreen({ onSong }: { readonly onSong: (song: PlayableSong) => void
   };
 
   return <main className="setup-screen">
-    <h1>MUSIC GAME</h1>
-    <p>GitHub Releasesから曲を選んでプレイします。</p>
+    <header className="setup-header">
+      <p className="setup-kicker">SELECT MUSIC</p>
+      <h1>MUSIC GAME</h1>
+      <p className="setup-lead">プレイする曲を選んでください。</p>
+    </header>
     <section className="setup-card">
-      <h2>PLAYLIST</h2>
+      <div className="setup-card-heading">
+        <h2>曲一覧</h2>
+        {catalog && <span>{catalog.songs.length} SONGS</span>}
+      </div>
       {error && <p className="error" role="alert">{error}</p>}
       {!catalog && !error && <p>読み込み中…</p>}
       {catalog && catalog.songs.length === 0 && <p>公開されている曲はありません。</p>}
@@ -74,9 +80,19 @@ function SetupScreen({ onSong }: { readonly onSong: (song: PlayableSong) => void
         {catalog?.songs.map((entry) => <button className="song-card" type="button"
           key={entry.id} disabled={loadingSongId !== null}
           onClick={() => { void selectReleaseSong(entry); }}>
-          {entry.thumbnailUrl && <img src={entry.thumbnailUrl} alt="" />}
-          <span><b>{entry.title}</b>{entry.artist && <small>{entry.artist}</small>}</span>
-          {loadingSongId === entry.id && <em>読み込み中…</em>}
+          <span className="song-thumbnail">
+            {entry.thumbnailUrl
+              ? <img src={entry.thumbnailUrl} alt="" />
+              : <span className="song-thumbnail-placeholder" aria-hidden="true">♪</span>}
+          </span>
+          <span className="song-copy">
+            <b>{entry.title}</b>
+            {entry.artist && <small>{entry.artist}</small>}
+          </span>
+          <span className="song-action">
+            {loadingSongId === entry.id ? '読み込み中…' : 'PLAY'}
+            {loadingSongId !== entry.id && <i aria-hidden="true">→</i>}
+          </span>
         </button>)}
       </div>
     </section>
