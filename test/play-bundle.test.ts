@@ -23,8 +23,9 @@ test('play bundle emits React game HTML, JavaScript, CSS, and render assets', as
   assert.match(html, /play\.css/);
   assert.match(script, /createRoot/);
   assert.match(script, /backgroundVideoUrl/);
-  assert.match(script, /\/api\/runtime/);
-  assert.match(script, /\/api\/debug\/output/);
+  assert.match(script, /data\/playlist\.json/);
+  assert.doesNotMatch(script, /\/api\/runtime/);
+  assert.doesNotMatch(script, /\/api\/debug\/output/);
   assert.match(script, /loadReleaseCatalog/);
   assert.match(script, /GitHub Releases/);
   assert.doesNotMatch(script, /type:\s*"file"/);

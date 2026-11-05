@@ -188,7 +188,7 @@ test('asset combo text is combined at center and emits a matching glow', () => {
   const assets: RenderAssets = {
     tap: asset, hold: asset,
     flick: { left: asset, right: asset, up: asset, down: asset },
-    perfect: asset, fullCombo: asset,
+    fullCombo: asset,
     gauge: asset, gaugeGlow: asset, hitRing: asset,
   };
 
@@ -207,6 +207,7 @@ test('asset combo text is combined at center and emits a matching glow', () => {
   assert.equal(glow?.fillStyle, comboNumberPalette(50)[1]);
   assert(glow && glow.globalAlpha > 0);
   assert.equal(glow.lineJoin, 'round');
+  assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === 'PERFECT'));
 });
 
 test('manual rendering draws actual judgments, score, combined combo, and glow', () => {
@@ -219,7 +220,7 @@ test('manual rendering draws actual judgments, score, combined combo, and glow',
   const assets: RenderAssets = {
     tap: asset, hold: asset,
     flick: { left: asset, right: asset, up: asset, down: asset },
-    perfect: asset, fullCombo: asset,
+    fullCombo: asset,
     gauge: asset, gaugeGlow: asset, hitRing: asset,
   };
   const baseState = {

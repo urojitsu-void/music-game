@@ -2,12 +2,10 @@ import {
   useEffect, useRef, useState, type PointerEvent as ReactPointerEvent,
 } from 'react';
 
-import { validateChart } from '../chart/validation.ts';
 import { loadBrowserRenderAssets } from '../render/browser-render-assets.ts';
 import {
   renderFrame, type CanvasLike, type RenderAssets,
 } from '../render/canvas-renderer.ts';
-import { DEFAULT_PLAYLIST_URL } from './data-config.ts';
 import {
   createGameController, type ControllerSnapshot, type GameController,
 } from './game-controller.ts';
@@ -36,23 +34,11 @@ function SetupScreen({ onSong }: { readonly onSong: (song: PlayableSong) => void
   const [error, setError] = useState<string | null>(null);
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<ReleaseCatalog | null>(null);
-  const [debug, setDebug] = useState(false);
-  const [debugStatus, setDebugStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      let playlistUrl = DEFAULT_PLAYLIST_URL;
-      try {
-        const response = await fetch('/api/runtime', { cache: 'no-store' });
-        if (response.ok) {
-          const runtime = await response.json() as { debug?: unknown; playlistUrl?: unknown };
-          if (!cancelled) setDebug(runtime.debug === true);
-          if (typeof runtime.playlistUrl === 'string') playlistUrl = runtime.playlistUrl;
-        }
-      } catch {
-        if (!cancelled) setDebug(false);
-      }
+      const playlistUrl = new URL('data/playlist.json', document.baseURI).href;
       try {
         const loaded = await loadReleaseCatalog(playlistUrl);
         if (!cancelled) setCatalog(loaded);
@@ -69,35 +55,6 @@ function SetupScreen({ onSong }: { readonly onSong: (song: PlayableSong) => void
     setError(null);
     try {
       onSong(await loadReleaseSong(catalog, entry));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
-    } finally {
-      setLoadingSongId(null);
-    }
-  };
-
-  const loadDebugOutput = async (): Promise<void> => {
-    setLoadingSongId('debug-output');
-    setError(null);
-    try {
-      const response = await fetch('/api/debug/output', { cache: 'no-store' });
-      const value = await response.json() as Record<string, unknown>;
-      if (!response.ok) throw new Error(typeof value.error === 'string' ? value.error : 'outputを読み込めません');
-      const chart = validateChart(value.chart);
-      if (typeof value.backgroundVideoUrl !== 'string' || typeof value.title !== 'string') {
-        throw new TypeError('debug output response is invalid');
-      }
-      const statusResponse = await fetch('/api/debug/status', { cache: 'no-store' });
-      if (statusResponse.ok) setDebugStatus(JSON.stringify(await statusResponse.json(), null, 2));
-      onSong({
-        id: typeof value.id === 'string' ? value.id : 'debug-output',
-        title: value.title,
-        artist: null,
-        thumbnailUrl: null,
-        backgroundVideoUrl: `${value.backgroundVideoUrl}?reload=${Date.now()}`,
-        chart,
-        dispose: () => undefined,
-      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -123,14 +80,6 @@ function SetupScreen({ onSong }: { readonly onSong: (song: PlayableSong) => void
         </button>)}
       </div>
     </section>
-    {debug && <section className="setup-card">
-      <h2>DEBUG</h2>
-      <p>既定のoutput/background.mp4とoutput/chart.jsonを再読込します。</p>
-      <button type="button" disabled={loadingSongId !== null} onClick={() => { void loadDebugOutput(); }}>
-        output/を読み込む
-      </button>
-      {debugStatus && <pre>{debugStatus}</pre>}
-    </section>}
   </main>;
 }
 

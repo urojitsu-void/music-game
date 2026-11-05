@@ -1,20 +1,10 @@
 import { createReadStream } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, isAbsolute, relative, resolve } from 'node:path';
-import { Readable } from 'node:stream';
-
-import { validateChart } from '../chart/validation.ts';
-import { DEFAULT_PLAYLIST_URL } from './data-config.ts';
 
 export interface PlayServerOptions {
   readonly root: string;
-  readonly outputDirectory: string;
-  readonly debug: boolean;
-  readonly playlistUrl?: string;
-  readonly releaseFetch?: (
-    url: string, init?: RequestInit,
-  ) => Promise<Response>;
   readonly host?: string;
   readonly port?: number;
 }
@@ -150,115 +140,13 @@ async function serveFile(
   else createReadStream(path).pipe(response);
 }
 
-async function proxyReleaseAsset(
-  request: IncomingMessage,
-  response: ServerResponse,
-  assetName: string,
-  playlistUrl: string,
-  releaseFetch: NonNullable<PlayServerOptions['releaseFetch']>,
-): Promise<void> {
-  if (!assetName || !/^[A-Za-z0-9._-]+$/.test(assetName)) {
-    sendText(response, 400, 'Bad request');
-    return;
-  }
-  const targetUrl = new URL(encodeURIComponent(assetName), new URL('.', playlistUrl)).href;
-  const headers = new Headers();
-  if (request.headers.range) headers.set('Range', request.headers.range);
-  const upstream = await releaseFetch(targetUrl, {
-    method: request.method,
-    headers,
-    redirect: 'follow',
-  });
-  const responseHeaders: Record<string, string> = {
-    'Content-Type': CONTENT_TYPES[extname(assetName).toLowerCase()]
-      ?? upstream.headers.get('content-type')
-      ?? 'application/octet-stream',
-  };
-  for (const name of ['content-length', 'accept-ranges', 'content-range', 'cache-control']) {
-    const value = upstream.headers.get(name);
-    if (value !== null) responseHeaders[name] = value;
-  }
-  response.writeHead(upstream.status, responseHeaders);
-  if (request.method === 'HEAD' || upstream.body === null) {
-    response.end();
-    return;
-  }
-  Readable.fromWeb(
-    upstream.body as Parameters<typeof Readable.fromWeb>[0],
-  ).pipe(response);
-}
-
 function createHandler(options: PlayServerOptions) {
   const root = resolve(options.root);
-  const outputDirectory = resolve(options.outputDirectory);
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     try {
       const path = parsePath(request);
       if (path === null) {
         sendText(response, 400, 'Bad request');
-        return;
-      }
-      if (path === '/api/runtime' && request.method === 'GET') {
-        sendJson(response, 200, {
-          debug: options.debug,
-          playlistUrl: '/api/release/playlist.json',
-        });
-        return;
-      }
-      if (path.startsWith('/api/release/')
-        && (request.method === 'GET' || request.method === 'HEAD')) {
-        await proxyReleaseAsset(
-          request,
-          response,
-          path.slice('/api/release/'.length),
-          options.playlistUrl ?? DEFAULT_PLAYLIST_URL,
-          options.releaseFetch ?? fetch,
-        );
-        return;
-      }
-      if (path.startsWith('/api/debug/')) {
-        if (!options.debug) {
-          sendText(response, 404, 'Not found');
-          return;
-        }
-        if (path === '/api/debug/status' && request.method === 'GET') {
-          sendJson(response, 200, {
-            debug: true,
-            outputDirectory,
-            generation: 'not-implemented',
-          });
-          return;
-        }
-        if (path === '/api/debug/generate' && request.method === 'POST') {
-          sendJson(response, 501, { error: 'Debug generation is not implemented yet' });
-          return;
-        }
-        if (path === '/api/debug/output/background.mp4' && (request.method === 'GET' || request.method === 'HEAD')) {
-          await serveFile(request, response, resolve(outputDirectory, 'background.mp4'), outputDirectory);
-          return;
-        }
-        if (path === '/api/debug/output' && request.method === 'GET') {
-          try {
-            await stat(resolve(outputDirectory, 'background.mp4'));
-            const chart = validateChart(JSON.parse(
-              await readFile(resolve(outputDirectory, 'chart.json'), 'utf8'),
-            ) as unknown);
-            sendJson(response, 200, {
-              id: 'debug-output',
-              title: 'output',
-              backgroundVideoUrl: '/api/debug/output/background.mp4',
-              chart,
-            });
-          } catch (error) {
-            const missing = typeof error === 'object' && error !== null
-              && 'code' in error && error.code === 'ENOENT';
-            sendJson(response, missing ? 404 : 422, {
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-          return;
-        }
-        sendText(response, 404, 'Not found');
         return;
       }
       if (request.method !== 'GET' && request.method !== 'HEAD') {

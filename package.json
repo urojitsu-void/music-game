@@ -9,7 +9,7 @@
     "test": "tsx --test test/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "assets:game": "tsx src/render/generate-game-assets.ts",
-    "play:build": "tsx src/play/build-browser.ts",
+    "play:build": "tsx src/play/build-pages.ts",
     "play": "tsx src/play/server-cli.ts",
     "data:deploy": "tsx src/play/data-deploy-cli.ts",
     "data:build": "node --env-file=.env.default --import tsx src/cli.ts data-build",

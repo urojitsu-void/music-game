@@ -13,13 +13,13 @@ async function asset(name: string): Promise<RasterAsset> {
 }
 
 export async function loadNodeRenderAssets(): Promise<RenderAssets> {
-  const [tap, hold, left, right, up, down, perfect, fullCombo, gauge, gaugeGlow, hitRing] = await Promise.all([
+  const [tap, hold, left, right, up, down, fullCombo, gauge, gaugeGlow, hitRing] = await Promise.all([
     asset('note-tap.png'), asset('note-hold.png'),
     asset('note-flick-left.png'), asset('note-flick-right.png'),
     asset('note-flick-up.png'), asset('note-flick-down.png'),
-    asset('perfect.png'), asset('full-combo.png'), asset('rainbow-bar.png'),
+    asset('full-combo.png'), asset('rainbow-bar.png'),
     asset('rainbow-bar-glow.png'),
     asset('hit-ring.png'),
   ]);
-  return { tap, hold, flick: { left, right, up, down }, perfect, fullCombo, gauge, gaugeGlow, hitRing };
+  return { tap, hold, flick: { left, right, up, down }, fullCombo, gauge, gaugeGlow, hitRing };
 }

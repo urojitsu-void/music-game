@@ -1,24 +1,20 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { bundlePlayApp } from './build-browser.ts';
+import { buildPagesApp } from './build-pages.ts';
 import { startPlayServer } from './server.ts';
 
 export interface PlayServerCliOptions {
   readonly host: string;
   readonly port: number;
-  readonly debug: boolean;
 }
 
 export function parsePlayServerArgs(args: readonly string[]): PlayServerCliOptions {
   let host = '127.0.0.1';
   let port = 4173;
-  let debug = false;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
-    if (argument === '--debug') {
-      debug = true;
-    } else if (argument === '--host') {
+    if (argument === '--host') {
       const value = args[index + 1];
       if (!value || value.startsWith('--')) throw new TypeError('--host requires a value');
       host = value;
@@ -34,24 +30,21 @@ export function parsePlayServerArgs(args: readonly string[]): PlayServerCliOptio
       throw new TypeError(`Unknown play server argument: ${argument}`);
     }
   }
-  return { host, port, debug };
+  return { host, port };
 }
 
 async function main(): Promise<void> {
   const options = parsePlayServerArgs(process.argv.slice(2));
   const root = resolve(process.cwd(), 'dist/play');
-  await bundlePlayApp(root);
-  const server = await startPlayServer({
-    ...options,
-    root,
-    outputDirectory: resolve(process.cwd(), 'output'),
+  await buildPagesApp({
+    outputDirectory: root,
     playlistUrl: process.env.MUSIC_GAME_PLAYLIST_URL,
   });
+  const server = await startPlayServer({ ...options, root });
   process.stdout.write(`Music Game: ${server.url}\n`);
   if (options.host === '0.0.0.0') {
     process.stdout.write('同一Wi-Fi内から、このMacのIPアドレスと上記ポートで接続できます。\n');
   }
-  if (options.debug) process.stdout.write('Debug mode: output/ API enabled\n');
   const stop = (): void => {
     void server.close().finally(() => process.exit(0));
   };

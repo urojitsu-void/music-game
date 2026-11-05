@@ -42,6 +42,15 @@ function text(value: unknown, path: string): string {
   return value;
 }
 
+function httpsAssetUrl(value: string): URL | null {
+  if (!value.startsWith('https://')) return null;
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || url.username || url.password) {
+    throw new TypeError(`${value} must be a safe HTTPS asset URL`);
+  }
+  return url;
+}
+
 export function flattenReleaseAssetPath(path: string): string {
   if (path.startsWith('/') || path.includes('\\')) {
     throw new TypeError(`${path} must be a safe relative data path`);
@@ -82,12 +91,12 @@ export function validateDataPlaylist(value: unknown, requireVersion = false): Da
       ...(song.thumbnail === undefined ? {} : { thumbnail: text(song.thumbnail, `${path}.thumbnail`) }),
     };
     for (const dataPath of Object.values(paths)) {
-      const flattened = flattenReleaseAssetPath(dataPath);
-      const previous = assets.get(flattened);
+      const key = httpsAssetUrl(dataPath)?.href ?? flattenReleaseAssetPath(dataPath);
+      const previous = assets.get(key);
       if (previous && previous !== dataPath) {
         throw new Error(`data paths ${previous} and ${dataPath} map to the same release asset`);
       }
-      assets.set(flattened, dataPath);
+      assets.set(key, dataPath);
     }
     return {
       id,
@@ -100,6 +109,11 @@ export function validateDataPlaylist(value: unknown, requireVersion = false): Da
 }
 
 export function releaseAssetUrl(playlistUrl: string, dataPath: string, version: string): string {
+  const direct = httpsAssetUrl(dataPath);
+  if (direct) {
+    direct.searchParams.set('v', version);
+    return direct.href;
+  }
   const assetName = encodeURIComponent(flattenReleaseAssetPath(dataPath));
   if (playlistUrl.startsWith('/')) {
     const directory = playlistUrl.slice(0, playlistUrl.lastIndexOf('/') + 1);

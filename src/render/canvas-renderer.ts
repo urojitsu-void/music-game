@@ -40,7 +40,6 @@ export interface RenderAssets {
   readonly tap: RasterAsset;
   readonly hold: RasterAsset;
   readonly flick: Readonly<Record<'left' | 'right' | 'up' | 'down', RasterAsset>>;
-  readonly perfect: RasterAsset;
   readonly fullCombo: RasterAsset;
   readonly gauge: RasterAsset;
   readonly gaugeGlow: RasterAsset;
@@ -393,18 +392,12 @@ export function renderFrame(
       context.textBaseline = 'middle';
       const judgmentY = point.y - point.radius * 3.4;
       const judgment = hit.judgment ?? 'PERFECT';
-      if (assets && judgment === 'PERFECT') {
-        const perfectScale = 1 + (1 - hit.progress) * 0.32;
-        drawAsset(context, assets.perfect, point.x, judgmentY, canvas.width * 0.19 * perfectScale);
-      }
-      else {
-        const judgmentColors: Readonly<Record<Judgment, string>> = {
-          PERFECT: '#ffe45c', GREAT: '#79f7ff', GOOD: '#87ff8c', BAD: '#ff9d5c', MISS: '#ff5f79',
-        };
-        context.strokeText(judgment, point.x, judgmentY);
-        context.fillStyle = judgmentColors[judgment];
-        context.fillText(judgment, point.x, judgmentY);
-      }
+      const judgmentColors: Readonly<Record<Judgment, string>> = {
+        PERFECT: '#ffe45c', GREAT: '#79f7ff', GOOD: '#87ff8c', BAD: '#ff9d5c', MISS: '#ff5f79',
+      };
+      context.strokeText(judgment, point.x, judgmentY);
+      context.fillStyle = judgmentColors[judgment];
+      context.fillText(judgment, point.x, judgmentY);
       context.restore();
     }
   }

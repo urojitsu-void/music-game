@@ -104,6 +104,24 @@ test('release song fetches and validates its chart only when selected', async ()
   assert.deepEqual(song.chart, chart());
 });
 
+test('release catalog accepts an HTTPS background URL in a Pages playlist', async () => {
+  const catalog = await loadReleaseCatalog('/data/playlist.json', async () => ({
+    formatVersion: 1,
+    version: 'pages-v1',
+    songs: [{
+      id: 'song',
+      title: 'Song',
+      background: 'https://github.com/owner/repo/releases/download/game-data/song__background.mp4',
+      chart: 'song-chart.json',
+    }],
+  }));
+
+  const song = await loadReleaseSong(catalog, catalog.songs[0]!, async () => chart());
+
+  assert.equal(song.backgroundVideoUrl,
+    'https://github.com/owner/repo/releases/download/game-data/song__background.mp4?v=pages-v1');
+});
+
 test('release catalog rejects duplicate IDs and duplicate flattened asset names', async () => {
   await assert.rejects(() => loadReleaseCatalog('https://example.com/playlist.json', async () => ({
     formatVersion: 1,

@@ -109,7 +109,6 @@ await Promise.all([
   writeFile(join(OUTPUT, 'note-hold.png'), sphere(['#ffe0fb', '#ff3fcf', '#73005d'])),
   ...(['left', 'right', 'up', 'down'] as const).map((direction) =>
     writeFile(join(OUTPUT, `note-flick-${direction}.png`), sphere(['#fffbd0', '#ffc928', '#9d4800'], direction))),
-  writeFile(join(OUTPUT, 'perfect.png'), textAsset('PERFECT', ['#fff177', '#d06b00'], 560, 150)),
   writeFile(join(OUTPUT, 'full-combo.png'), textAsset('FULL COMBO', ['#fff177', '#e32572'], 900, 190)),
   writeFile(join(OUTPUT, 'rainbow-bar.png'), rainbowBar()),
   writeFile(join(OUTPUT, 'rainbow-bar-glow.png'), rainbowBarGlow()),
