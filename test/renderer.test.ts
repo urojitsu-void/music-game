@@ -209,6 +209,54 @@ test('asset combo text is combined at center and emits a matching glow', () => {
   assert.equal(glow.lineJoin, 'round');
 });
 
+test('manual rendering draws actual judgments, score, combined combo, and glow', () => {
+  const context = new RecordingContext();
+  const canvas = {
+    width: 1280, height: 720,
+    getContext: (kind: string) => kind === '2d' ? context : null,
+  };
+  const asset = { image: {}, width: 100, height: 50 };
+  const assets: RenderAssets = {
+    tap: asset, hold: asset,
+    flick: { left: asset, right: asset, up: asset, down: asset },
+    perfect: asset, fullCombo: asset,
+    gauge: asset, gaugeGlow: asset, hitRing: asset,
+  };
+  const baseState = {
+    notes: [],
+    combo: 50,
+    gauge: 0.5,
+    hitPulse: 1,
+    fullComboProgress: null,
+    score: 12_345,
+  } as const;
+  const judgments = ['GREAT', 'GOOD', 'BAD', 'MISS'] as const;
+
+  for (const judgment of judgments) {
+    renderFrame(canvas, chart(), 3,
+      { gameX: 0.5, gameY: 0.82, gameWidth: 0.58, gameHeight: 0.68 },
+      null,
+      {
+        mode: 'manual',
+        state: {
+          ...baseState,
+          hits: [{ type: 'tap', time: 3, lane: 0, progress: 0, judgment }],
+        },
+      },
+      assets);
+  }
+
+  for (const judgment of judgments) {
+    assert(context.calls.some((call) => call.name === 'fillText' && call.args[0] === judgment));
+  }
+  assert(context.calls.some((call) => call.name === 'fillText'
+    && call.args[0] === 'SCORE 12,345'));
+  assert(context.calls.some((call) => call.name === 'fillText'
+    && call.args[0] === 'COMBO 50' && call.globalCompositeOperation === 'source-over'));
+  assert(context.calls.some((call) => call.name === 'fillText'
+    && call.args[0] === 'COMBO 50' && call.globalCompositeOperation === 'lighter'));
+});
+
 test('full combo hides the entire playfield but keeps gauge and combo UI', () => {
   const context = new RecordingContext();
   const canvas = {

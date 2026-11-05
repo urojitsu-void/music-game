@@ -1,5 +1,6 @@
 import type { Layout } from '../build/config.ts';
 import type { Chart, ChartNote } from '../chart/schema.ts';
+import type { Judgment } from '../play/game-engine.ts';
 import {
   lanePoint, projectNote, resolveLayout, type ProjectedNote,
 } from './geometry.ts';
@@ -53,6 +54,7 @@ export type FrameNote = ChartNote & {
 
 export type HitState = ChartNote & {
   readonly progress: number;
+  readonly judgment?: Judgment;
 };
 
 export interface FrameState {
@@ -62,7 +64,12 @@ export interface FrameState {
   readonly gauge: number;
   readonly hitPulse: number;
   readonly fullComboProgress: number | null;
+  readonly score?: number;
 }
+
+export type RenderPlayState =
+  | { readonly mode: 'autoplay' }
+  | { readonly mode: 'manual'; readonly state: FrameState };
 
 export function comboNumberPalette(combo: number): readonly [string, string, string] {
   if (combo >= 400) return ['#ff8aa4', '#ff1744', '#870019'];
@@ -295,15 +302,15 @@ export function renderFrame(
   timeSeconds: number,
   normalizedLayout: Layout,
   theme: RenderTheme | null,
-  playState: { readonly mode: 'autoplay' },
+  playState: RenderPlayState,
   assets?: RenderAssets,
 ): FrameState {
-  if (playState.mode !== 'autoplay') throw new Error('Only autoplay rendering is supported');
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Canvas 2D context is unavailable');
   const colors = theme ?? DEFAULT_THEME;
   const layout = resolveLayout(normalizedLayout, canvas.width, canvas.height);
-  const state = deriveFrameState(chart, timeSeconds);
+  const state = playState.mode === 'autoplay'
+    ? deriveFrameState(chart, timeSeconds) : playState.state;
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   if (state.fullComboProgress === null) {
@@ -384,15 +391,19 @@ export function renderFrame(
       context.font = `900 ${Math.max(24, canvas.height * 0.052)}px sans-serif`;
       context.textAlign = 'center';
       context.textBaseline = 'middle';
-      const perfectY = point.y - point.radius * 3.4;
-      if (assets) {
+      const judgmentY = point.y - point.radius * 3.4;
+      const judgment = hit.judgment ?? 'PERFECT';
+      if (assets && judgment === 'PERFECT') {
         const perfectScale = 1 + (1 - hit.progress) * 0.32;
-        drawAsset(context, assets.perfect, point.x, perfectY, canvas.width * 0.19 * perfectScale);
+        drawAsset(context, assets.perfect, point.x, judgmentY, canvas.width * 0.19 * perfectScale);
       }
       else {
-        context.strokeText('PERFECT', point.x, perfectY);
-        context.fillStyle = colors.flickColor;
-        context.fillText('PERFECT', point.x, perfectY);
+        const judgmentColors: Readonly<Record<Judgment, string>> = {
+          PERFECT: '#ffe45c', GREAT: '#79f7ff', GOOD: '#87ff8c', BAD: '#ff9d5c', MISS: '#ff5f79',
+        };
+        context.strokeText(judgment, point.x, judgmentY);
+        context.fillStyle = judgmentColors[judgment];
+        context.fillText(judgment, point.x, judgmentY);
       }
       context.restore();
     }
@@ -435,6 +446,18 @@ export function renderFrame(
         gaugeY, 2, gaugeHeight);
     }
   }
+  if (state.score !== undefined) {
+    context.font = `900 ${Math.max(18, canvas.height * 0.03)}px "Avenir Next", sans-serif`;
+    context.textAlign = 'right';
+    context.textBaseline = 'top';
+    context.lineWidth = Math.max(4, canvas.height * 0.006);
+    context.strokeStyle = colors.textOutline;
+    context.fillStyle = colors.textColor;
+    const scoreText = `SCORE ${state.score.toLocaleString('en-US')}`;
+    const scoreY = gaugeY + gaugeHeight + canvas.height * 0.012;
+    context.strokeText(scoreText, gaugeX + gaugeWidth, scoreY);
+    context.fillText(scoreText, gaugeX + gaugeWidth, scoreY);
+  }
   if (state.combo > 0) {
     const bounce = 1 + state.hitPulse * 0.28;
     const comboY = gaugeY + gaugeHeight + canvas.height * 0.052;
@@ -447,7 +470,8 @@ export function renderFrame(
     context.font = `900 ${Math.max(20, canvas.height * 0.045) * bounce}px sans-serif`;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    const comboText = assets ? `COMBO ${state.combo}` : `${state.combo} COMBO`;
+    const comboText = assets || playState.mode === 'manual'
+      ? `COMBO ${state.combo}` : `${state.combo} COMBO`;
     if (assets) {
       context.save();
       context.globalCompositeOperation = 'lighter';

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { parseBuildArgs } from '../src/build/cli-options.ts';
+import { parseBuildArgs, parseDataBuildArgs } from '../src/build/cli-options.ts';
 
 test('parseBuildArgs preserves automatic subtitle behavior by default', () => {
   assert.deepEqual(parseBuildArgs(['build', 'song.mp3']), {
@@ -15,6 +15,17 @@ test('parseBuildArgs supports explicit and disabled subtitles', () => {
   });
   assert.deepEqual(parseBuildArgs(['build', 'song.mp3', '--no-subtitle']), {
     inputPath: 'song.mp3', subtitle: null,
+  });
+});
+
+test('parseDataBuildArgs accepts the same subtitle options as build', () => {
+  assert.deepEqual(parseDataBuildArgs(['data-build', 'song.mp4', '--no-subtitle']), {
+    inputPath: 'song.mp4', subtitle: null,
+  });
+  assert.deepEqual(parseDataBuildArgs([
+    'data-build', 'song.mp3', '--subtitle', 'song.lrc',
+  ]), {
+    inputPath: 'song.mp3', subtitle: 'song.lrc',
   });
 });
 

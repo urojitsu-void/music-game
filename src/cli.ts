@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
 import { runBuild } from './build/run-build.ts';
-import { parseBuildArgs } from './build/cli-options.ts';
+import { parseBuildArgs, parseDataBuildArgs } from './build/cli-options.ts';
+import { runDataBuild } from './build/run-data-build.ts';
 import { processSupervisor } from './platform/process.ts';
 import { installShutdownHandlers } from './platform/signals.ts';
 
 async function main(args: readonly string[]): Promise<void> {
+  if (args[0] === 'data-build') {
+    await runDataBuild(parseDataBuildArgs(args));
+    return;
+  }
   const options = parseBuildArgs(args);
   await runBuild(options);
 }

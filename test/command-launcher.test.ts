@@ -64,7 +64,7 @@ test('launcher passes a selected MP4 to the project build and notifies success',
 
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual((await readFile(fixture.buildCapture, 'utf8')).trim().split('\n'), [
-    PROJECT_ROOT, 'run', 'build', '--', inputPath, '--no-subtitle',
+    PROJECT_ROOT, 'run', 'video:generate', '--', inputPath, '--no-subtitle',
   ]);
   assert.match(await readFile(fixture.notificationCapture, 'utf8'), /display notification/);
   assert.equal((await stat(COMMAND_PATH)).mode & 0o111, 0o111);
@@ -86,7 +86,7 @@ test('launcher lets MP3 users select a subtitle file in Finder', async (t) => {
 
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual((await readFile(fixture.buildCapture, 'utf8')).trim().split('\n'), [
-    PROJECT_ROOT, 'run', 'build', '--', inputPath, '--subtitle', subtitlePath,
+    PROJECT_ROOT, 'run', 'video:generate', '--', inputPath, '--subtitle', subtitlePath,
   ]);
 });
 

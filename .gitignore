@@ -3,3 +3,5 @@ output/
 node_modules/
 .DS_Store
 docs
+dist
+data/

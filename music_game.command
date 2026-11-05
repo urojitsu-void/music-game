@@ -27,7 +27,7 @@ if [ "$subtitle_choice" = "字幕を選ぶ" ]; then
 fi
 
 cd "$project_dir" || exit 1
-npm run build -- "$input" "${subtitle_args[@]}"
+npm run video:generate -- "$input" "${subtitle_args[@]}"
 status=$?
 
 if [ "$status" -eq 0 ]; then
