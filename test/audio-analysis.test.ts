@@ -83,7 +83,9 @@ function pcm16Wav(samples: Float32Array): Buffer {
   return buffer;
 }
 
-test('decodeAudioToMono decodes canonical samples and hashDecodedAudio is content-stable', async (t) => {
+test('decodeAudioToMono decodes canonical samples and hashDecodedAudio is content-stable', {
+  skip: process.env.SKIP_FFMPEG_TESTS === '1' ? 'requires FFmpeg' : false,
+}, async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'audio-analysis-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const first = new Float32Array(SAMPLE_RATE * 2);

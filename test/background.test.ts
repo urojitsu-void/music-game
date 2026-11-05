@@ -173,7 +173,9 @@ test('createBackground ignores embedded MP3 cover dimensions when validating out
   assert.equal(result.media.video?.displayHeight, 720);
 });
 
-test('createBackground normalizes video to 30fps and pads short audio', async (t) => {
+test('createBackground normalizes video to 30fps and pads short audio', {
+  skip: process.env.SKIP_FFMPEG_TESTS === '1' ? 'requires FFmpeg' : false,
+}, async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'background-integration-'));
   t.after(async () => {
     const { rm } = await import('node:fs/promises');

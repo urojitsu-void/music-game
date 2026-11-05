@@ -29,6 +29,8 @@ jobs:
         run: npm ci
       - name: Test
         run: npm test
+        env:
+          SKIP_FFMPEG_TESTS: '1'
       - name: Type check
         run: npm run typecheck
       - name: Build Pages artifact

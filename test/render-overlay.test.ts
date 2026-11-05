@@ -94,7 +94,9 @@ test('renderOverlay reuses the shared renderer at exact timestamps and streams r
   assert.equal(await readFile(outputPath, 'utf8'), 'mov');
 });
 
-test('renderOverlay creates a real alpha ProRes video with Node Canvas and FFmpeg', async (t) => {
+test('renderOverlay creates a real alpha ProRes video with Node Canvas and FFmpeg', {
+  skip: process.env.SKIP_FFMPEG_TESTS === '1' ? 'requires FFmpeg' : false,
+}, async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'render-overlay-integration-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const backgroundMedia: ProbeMetadata = {

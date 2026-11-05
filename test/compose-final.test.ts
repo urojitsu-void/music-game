@@ -75,7 +75,9 @@ test('composeFinal reports the measured conversion time after validated output',
   await assert.rejects(readFile(join(root, 'final.tmp.mp4')), { code: 'ENOENT' });
 });
 
-test('composeFinal creates a real H.264/AAC video from an alpha overlay', async (t) => {
+test('composeFinal creates a real H.264/AAC video from an alpha overlay', {
+  skip: process.env.SKIP_FFMPEG_TESTS === '1' ? 'requires FFmpeg' : false,
+}, async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'compose-final-integration-'));
   t.after(async () => {
     const { rm } = await import('node:fs/promises');
