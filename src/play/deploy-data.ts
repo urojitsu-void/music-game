@@ -188,5 +188,11 @@ export async function deployPreparedData(
   if (uploaded.exitCode !== 0) {
     throw new Error(`Failed to upload game data: ${uploaded.stderr}`);
   }
+  const pages = await options.run('gh', [
+    'workflow', 'run', 'pages.yml', ...common, '--ref', 'main',
+  ]);
+  if (pages.exitCode !== 0) {
+    throw new Error(`Game data uploaded, but failed to rebuild GitHub Pages: ${pages.stderr}`);
+  }
   return { uploaded: true, summary };
 }

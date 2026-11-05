@@ -146,6 +146,9 @@ test('data deployment creates a missing release then uploads all staged assets',
       '/tmp/staged/song__chart.json', '/tmp/staged/playlist.json',
       '--repo', 'owner/repo', '--clobber',
     ] },
+    { command: 'gh', args: [
+      'workflow', 'run', 'pages.yml', '--repo', 'owner/repo', '--ref', 'main',
+    ] },
   ]);
 });
 
