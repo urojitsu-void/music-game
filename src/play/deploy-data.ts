@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 
 import { validateChart } from '../chart/validation.ts';
+import { createVideoThumbnail } from '../media/video-thumbnail.ts';
 import { flattenReleaseAssetPath, type DataPlaylist } from './release-catalog.ts';
 
 export interface DataReleaseConfig {
@@ -59,7 +60,12 @@ async function requiredFile(path: string, relativePath: string): Promise<void> {
   throw new Error(`song directory is missing required data file: ${relativePath}`);
 }
 
-async function generatePlaylist(dataDirectory: string): Promise<DataPlaylist> {
+type CreateThumbnail = (backgroundPath: string, outputPath: string) => Promise<void>;
+
+async function generatePlaylist(
+  dataDirectory: string,
+  createThumbnail: CreateThumbnail,
+): Promise<DataPlaylist> {
   const entries = await readdir(dataDirectory, { withFileTypes: true });
   const songDirectories = entries.filter((entry) => entry.isDirectory())
     .sort((left, right) => left.name.localeCompare(right.name));
@@ -85,6 +91,13 @@ async function generatePlaylist(dataDirectory: string): Promise<DataPlaylist> {
         // Optional thumbnail is absent.
       }
     }
+    if (!thumbnail) {
+      thumbnail = `${id}/thumbnail.jpg`;
+      await createThumbnail(
+        join(dataDirectory, background),
+        join(dataDirectory, thumbnail),
+      );
+    }
     songs.push({
       id,
       title: chart.audio.replace(/\.[^.]+$/, ''),
@@ -100,13 +113,15 @@ export async function prepareDataDeployment({
   dataDirectory,
   release,
   now = new Date(),
+  createThumbnail = createVideoThumbnail,
 }: {
   readonly dataDirectory: string;
   readonly release: DataReleaseConfig;
   readonly now?: Date;
+  readonly createThumbnail?: CreateThumbnail;
 }): Promise<PreparedDataDeployment> {
   const sourcePlaylistPath = join(dataDirectory, 'playlist.json');
-  const playlist = await generatePlaylist(dataDirectory);
+  const playlist = await generatePlaylist(dataDirectory, createThumbnail);
   await writeFile(sourcePlaylistPath, `${JSON.stringify(playlist, null, 2)}\n`, 'utf8');
   const sourceFiles = await filesBelow(dataDirectory);
 

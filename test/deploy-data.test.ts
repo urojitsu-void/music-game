@@ -28,13 +28,17 @@ test('data deployment recursively stages referenced data with flattened asset na
   await Promise.all([
     writeFile(join(root, 'dear-who', 'background.mp4'), 'video'),
     writeFile(join(root, 'dear-who', 'chart.json'), chart()),
-    writeFile(join(root, 'dear-who', 'thumbnail.jpg'), 'image'),
   ]);
 
   const deployment = await prepareDataDeployment({
     dataDirectory: root,
     release,
     now: new Date('2026-11-05T00:00:00.000Z'),
+    createThumbnail: async (backgroundPath, thumbnailPath) => {
+      assert.equal(backgroundPath, join(root, 'dear-who', 'background.mp4'));
+      assert.equal(thumbnailPath, join(root, 'dear-who', 'thumbnail.jpg'));
+      await writeFile(thumbnailPath, 'image');
+    },
   });
   t.after(() => deployment.cleanup());
 
